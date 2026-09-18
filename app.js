@@ -72,6 +72,33 @@
     ctx.fillText(text, x, y, width);
   }
 
+  function drawTabular(ctx, text, x, y, width, initial, minimum, align) {
+    // Impact uses proportional numerals. Give every digit the same advance so
+    // equal-length values line up in a vertical column.
+    let size = initial;
+    let digitWidth, slashWidth;
+    while (true) {
+      ctx.font = `900 ${size}px Impact, "Arial Narrow", sans-serif`;
+      digitWidth = Math.max(...'0123456789'.split('').map((digit) => ctx.measureText(digit).width));
+      slashWidth = ctx.measureText('/').width;
+      const total = [...text].reduce((sum, char) => sum + (char === '/' ? slashWidth : digitWidth), 0);
+      if (total <= width || size <= minimum) break;
+      size--;
+    }
+    const total = [...text].reduce((sum, char) => sum + (char === '/' ? slashWidth : digitWidth), 0);
+    const scale = Math.min(1, width / total);
+    ctx.save();
+    ctx.translate(align === 'right' ? x - total * scale : align === 'center' ? x - total * scale / 2 : x, y);
+    ctx.scale(scale, 1);
+    ctx.textAlign = 'left';
+    let cursor = 0;
+    for (const char of text) {
+      ctx.fillText(char, cursor, 0);
+      cursor += char === '/' ? slashWidth : digitWidth;
+    }
+    ctx.restore();
+  }
+
   function drawName(ctx, name, g, y) {
     // Keep every machine name on one line and use the largest size that fits.
     let size = g.nameFont;
@@ -105,7 +132,7 @@
       ctx.fillStyle = '#fff';
       ctx.shadowColor = '#061027'; ctx.shadowBlur = format === 'web' ? 9 : 5;
       ctx.shadowOffsetX = 3; ctx.shadowOffsetY = format === 'web' ? 7 : 4;
-      drawFitted(ctx, String(value), g.dateX[i] + headerOffset, g.dateY, g.headerWidths[i], g.dateFont, g.dateFont - 24, 'center');
+      drawTabular(ctx, String(value), g.dateX[i] + headerOffset, g.dateY, g.headerWidths[i], g.dateFont, g.dateFont - 24, 'center');
       ctx.restore();
     });
     // Remove colored placeholders built into the original Excel backgrounds.
@@ -117,14 +144,14 @@
     state.parsed.groups[type].slice(0, 10).forEach((row, i) => {
       const y = Math.round(g.rowTop + i * g.rowStep + g.rowHeight / 2);
       ctx.fillStyle = toneColors.weekday;
-      drawFitted(ctx, String(row.number), g.numberRight, y, g.numberWidth, g.numberFont, g.numberFont - 22, 'right');
+      drawTabular(ctx, String(row.number), g.numberRight, y, g.numberWidth, g.numberFont, g.numberFont - 22, 'right');
       drawFitted(ctx, '番台', g.numberSuffixX, y + g.suffixY, g.nameX - g.numberSuffixX - 10, g.suffixFont, g.suffixFont - 4, 'left', '"Yu Gothic", Meiryo, sans-serif');
       drawName(ctx, row.name, g, y);
       const date = RankingCore.rowDate(row, model);
       ctx.fillStyle = toneColors[RankingCore.dateTone(date)];
-      drawFitted(ctx, `${row.month}/${row.day}`, g.rowDateX, y, g.dateWidth, g.rowDateFont, g.rowDateFont - 8, 'center');
+      drawTabular(ctx, `${row.month}/${row.day}`, g.rowDateX, y, g.dateWidth, g.rowDateFont, g.rowDateFont - 8, 'center');
       ctx.fillStyle = toneColors.weekday;
-      drawFitted(ctx, String(row.amount), g.amountRight, y, g.amountWidth, g.valueFont, g.valueFont - 27, 'right');
+      drawTabular(ctx, String(row.amount), g.amountRight, y, g.amountWidth, g.valueFont, g.valueFont - 27, 'right');
       drawFitted(ctx, type === 'pachinko' ? '玉' : '枚', g.amountSuffixX, y + g.suffixY, g.cells[2][1] - g.amountSuffixX - 5, g.suffixFont, g.suffixFont - 4, 'left', '"Yu Gothic", Meiryo, sans-serif');
     });
   }
