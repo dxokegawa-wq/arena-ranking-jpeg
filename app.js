@@ -73,23 +73,17 @@
   }
 
   function drawName(ctx, name, g, y) {
-    // Try the largest bold font that fits the cell, using up to three lines.
-    let chosen;
-    for (let size = g.nameFont; size >= (g.rowHeight > 80 ? 18 : 12); size--) {
+    // Keep every machine name on one line and use the largest size that fits.
+    let size = g.nameFont;
+    const minimum = g.rowHeight > 80 ? 15 : 10;
+    while (size > minimum) {
       ctx.font = `900 ${size}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
-      const lines = [''];
-      for (const char of Array.from(name)) {
-        const last = lines.length - 1;
-        if (lines[last] && ctx.measureText(lines[last] + char).width > g.nameWidth) lines.push(char);
-        else lines[last] += char;
-      }
-      if (lines.length <= 3 && lines.length * (size + 2) <= g.rowHeight - 6) { chosen = { size, lines }; break; }
+      if (ctx.measureText(name).width <= g.nameWidth) break;
+      size--;
     }
-    if (!chosen) { ctx.font = '900 12px sans-serif'; chosen = { size: 12, lines: [name] }; }
     ctx.textAlign = 'left';
-    ctx.font = `900 ${chosen.size}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
-    const step = chosen.size + 2;
-    chosen.lines.forEach((line, n) => ctx.fillText(line, g.nameX, y + (n - (chosen.lines.length - 1) / 2) * step, g.nameWidth));
+    ctx.font = `900 ${size}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
+    ctx.fillText(name, g.nameX, y, g.nameWidth);
   }
 
   async function render(type, format, targetCanvas) {
@@ -103,12 +97,15 @@
     const g = layout[format];
     ctx.textBaseline = 'middle';
     const parts = [model.start.month, model.start.day, model.end.month, model.end.day];
+    // The Web slot background places its month/day labels to the right of the
+    // corresponding labels in the pachinko background.
+    const headerOffset = type === 'slot' && format === 'web' ? 32 : 0;
     parts.forEach((value, i) => {
       ctx.save();
       ctx.fillStyle = '#fff';
       ctx.shadowColor = '#061027'; ctx.shadowBlur = format === 'web' ? 9 : 5;
       ctx.shadowOffsetX = 3; ctx.shadowOffsetY = format === 'web' ? 7 : 4;
-      drawFitted(ctx, String(value), g.dateX[i], g.dateY, g.headerWidths[i], g.dateFont, g.dateFont - 24, 'center');
+      drawFitted(ctx, String(value), g.dateX[i] + headerOffset, g.dateY, g.headerWidths[i], g.dateFont, g.dateFont - 24, 'center');
       ctx.restore();
     });
     // Remove colored placeholders built into the original Excel backgrounds.
