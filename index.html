@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c1930">
+  <title>出玉ランキング画像メーカー</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">ARENA · RANKING STUDIO</p>
+      <h1>出玉ランキング画像メーカー</h1>
+      <p>メール本文を貼るだけ。パチンコ・スロットのランキングを読み取り、ExcelのデザインでJPEGにします。</p>
+    </header>
+
+    <div class="layout">
+      <section class="panel input-panel" aria-labelledby="paste-title">
+        <div class="heading"><span class="step">01</span><h2 id="paste-title">メール本文を貼り付け</h2></div>
+        <label for="mailText" class="field-label">件名や署名を含めて、そのまま貼り付けられます</label>
+        <textarea id="mailText" spellcheck="false" placeholder="店舗：ogo\n2026年9月7日(月)～2026年9月13日(日)\n\n■4円P\n① 216番台 e東京喰種W 9/13 60610発\n...\n\n■21.7391円S\n① 53番台 L甲鉄城のカバネリ海門決戦 9/13 8326枚"></textarea>
+        <p id="readStatus" class="status" role="status" aria-live="polite">本文を貼ると自動で読み取ります。</p>
+
+        <div class="heading second"><span class="step">02</span><h2>日付を確認</h2></div>
+        <p class="hint">本文の期間から自動入力します。必要なら修正できます。</p>
+        <div class="date-grid">
+          <fieldset><legend>開始日</legend><label>月 <input id="startMonth" type="number" min="1" max="12" inputmode="numeric"></label><label>日 <input id="startDay" type="number" min="1" max="31" inputmode="numeric"></label></fieldset>
+          <span class="date-arrow" aria-hidden="true">→</span>
+          <fieldset><legend>終了日</legend><label>月 <input id="endMonth" type="number" min="1" max="12" inputmode="numeric"></label><label>日 <input id="endDay" type="number" min="1" max="31" inputmode="numeric"></label></fieldset>
+        </div>
+        <p class="privacy">本文はブラウザー内だけで処理します。サーバーには送信しません。</p>
+      </section>
+
+      <section class="panel output-panel" aria-labelledby="preview-title">
+        <div class="heading"><span class="step">03</span><h2 id="preview-title">画像を確認して保存</h2></div>
+        <div class="controls">
+          <div class="segmented" role="group" aria-label="ランキングの種類">
+            <button class="type-btn active" data-type="pachinko" type="button">パチンコ <span id="pCount">0</span></button>
+            <button class="type-btn" data-type="slot" type="button">スロット <span id="sCount">0</span></button>
+          </div>
+          <label class="format-picker">画像サイズ <select id="format"><option value="web">Web用 1600×2266</option><option value="signage">サイネージ用 740×1350</option></select></label>
+        </div>
+        <p id="previewStatus" class="hint" role="status" aria-live="polite">本文を貼るとプレビューが表示されます。</p>
+        <div class="preview-stage"><canvas id="preview" aria-label="出玉ランキング画像のプレビュー"></canvas></div>
+        <div class="actions"><button id="download" type="button" disabled>表示中のJPEGを保存</button><button id="downloadAll" class="secondary" type="button" disabled>読み取った画像をまとめて保存</button></div>
+        <p class="download-note">まとめて保存は、読み取った種類それぞれのWeb用・サイネージ用をダウンロードします。</p>
+      </section>
+    </div>
+    <footer>提供されたExcelの背景画像を使用 · 無料の静的Webアプリ</footer>
+  </main>
+  <script src="core.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
