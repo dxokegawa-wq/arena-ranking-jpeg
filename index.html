@@ -23,28 +23,37 @@
         <p id="readStatus" class="status" role="status" aria-live="polite">本文を貼ると自動で読み取ります。</p>
 
         <div class="heading second"><span class="step">02</span><h2>日付を確認</h2></div>
-        <p class="hint">本文の期間から自動入力します。曜日と祝日の判定に年を使うので確認してください。</p>
-        <div class="date-grid">
-          <fieldset><legend>開始日</legend><label>年 <input id="startYear" type="number" min="1900" max="2100" inputmode="numeric"></label><label>月 <input id="startMonth" type="number" min="1" max="12" inputmode="numeric"></label><label>日 <input id="startDay" type="number" min="1" max="31" inputmode="numeric"></label></fieldset>
-          <span class="date-arrow" aria-hidden="true">→</span>
-          <fieldset><legend>終了日</legend><label>年 <input id="endYear" type="number" min="1900" max="2100" inputmode="numeric"></label><label>月 <input id="endMonth" type="number" min="1" max="12" inputmode="numeric"></label><label>日 <input id="endDay" type="number" min="1" max="31" inputmode="numeric"></label></fieldset>
-        </div>
+        <p id="periodStatus" class="hint" role="status">本文の期間を自動取得します。必要な場合だけ下の日付を修正してください。</p>
+        <details id="dateDetails" class="date-details"><summary>日付が違う場合だけ修正する</summary>
+          <div class="date-grid">
+            <fieldset><legend>開始日</legend><label>年 <input id="startYear" type="number" min="1900" max="2100" inputmode="numeric"></label><label>月 <input id="startMonth" type="number" min="1" max="12" inputmode="numeric"></label><label>日 <input id="startDay" type="number" min="1" max="31" inputmode="numeric"></label></fieldset>
+            <span class="date-arrow" aria-hidden="true">→</span>
+            <fieldset><legend>終了日</legend><label>年 <input id="endYear" type="number" min="1900" max="2100" inputmode="numeric"></label><label>月 <input id="endMonth" type="number" min="1" max="12" inputmode="numeric"></label><label>日 <input id="endDay" type="number" min="1" max="31" inputmode="numeric"></label></fieldset>
+          </div>
+        </details>
         <p class="privacy">本文はブラウザー内だけで処理します。サーバーには送信しません。</p>
       </section>
 
       <section class="panel output-panel" aria-labelledby="preview-title">
-        <div class="heading"><span class="step">03</span><h2 id="preview-title">画像を確認して保存</h2></div>
+        <div class="heading"><span class="step">03</span><h2 id="preview-title">2種類の画像を確認して保存</h2></div>
         <div class="controls">
-          <div class="segmented" role="group" aria-label="ランキングの種類">
-            <button class="type-btn active" data-type="pachinko" type="button">パチンコ <span id="pCount">0</span></button>
-            <button class="type-btn" data-type="slot" type="button">スロット <span id="sCount">0</span></button>
-          </div>
+          <p class="hint">貼り付けるとパチンコとスロットを同時に作成します。</p>
           <label class="format-picker">画像サイズ <select id="format"><option value="web">Web用 1600×2266</option><option value="signage">サイネージ用 740×1350</option></select></label>
         </div>
-        <p id="previewStatus" class="hint" role="status" aria-live="polite">本文を貼るとプレビューが表示されます。</p>
-        <div class="preview-stage"><canvas id="preview" aria-label="出玉ランキング画像のプレビュー"></canvas></div>
-        <div class="actions"><button id="download" type="button" disabled>表示中のJPEGを保存</button><button id="downloadAll" class="secondary" type="button" disabled>読み取った画像をまとめて保存</button></div>
-        <p class="download-note">まとめて保存は、読み取った種類それぞれのWeb用・サイネージ用をダウンロードします。</p>
+        <div class="previews">
+          <article class="result-card">
+            <div class="result-head"><h3>パチンコ <span id="pCount">0</span>件</h3><button id="downloadP" type="button" disabled>JPEGを保存</button></div>
+            <p id="statusP" class="hint" role="status">本文を貼ると画像が表示されます。</p>
+            <div class="preview-stage"><canvas id="previewP" aria-label="パチンコ出玉ランキング画像のプレビュー"></canvas></div>
+          </article>
+          <article class="result-card">
+            <div class="result-head"><h3>スロット <span id="sCount">0</span>件</h3><button id="downloadS" type="button" disabled>JPEGを保存</button></div>
+            <p id="statusS" class="hint" role="status">本文を貼ると画像が表示されます。</p>
+            <div class="preview-stage"><canvas id="previewS" aria-label="スロット出玉ランキング画像のプレビュー"></canvas></div>
+          </article>
+        </div>
+        <div class="actions"><button id="downloadAll" type="button" disabled>パチンコ・スロットをまとめて保存（ZIP）</button></div>
+        <p class="download-note">ZIPには読み取った種類のJPEGを、選んだ画像サイズで入れます。各画像は上のボタンから個別に保存できます。</p>
       </section>
     </div>
     <footer>提供されたExcelの背景画像を使用 · 無料の静的Webアプリ</footer>

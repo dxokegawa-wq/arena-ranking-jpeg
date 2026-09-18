@@ -6,18 +6,18 @@
     slot: { web: 'assets/slot-web.jpg', signage: 'assets/slot-signage.jpg' }
   };
   const layout = {
-    web: { dateX: [140, 450, 850, 1250], dateY: 658, dateFont: 72,
+    web: { dateX: [140, 425, 850, 1200], dateY: 658, dateFont: 134, headerWidths: [145, 160, 145, 165],
       rowTop: 906, rowHeight: 101, rowStep: 129.3, cells: [[253, 932], [951, 1146], [1166, 1482]],
-      numberRight: 490, numberWidth: 228, nameX: 510, nameWidth: 416,
-      rowDateX: 1049, dateWidth: 186, amountRight: 1472, amountWidth: 296,
-      numberFont: 54, nameFont: 47, rowDateFont: 54, valueFont: 52 },
-    signage: { dateX: [90, 245, 430, 615], dateY: 404, dateFont: 40,
+      numberRight: 387, numberWidth: 126, numberSuffixX: 401, nameX: 510, nameWidth: 416,
+      rowDateX: 1049, dateWidth: 186, amountRight: 1434, amountWidth: 248, amountSuffixX: 1441,
+      numberFont: 78, nameFont: 67, rowDateFont: 73, valueFont: 79, suffixFont: 29, suffixY: 21 },
+    signage: { dateX: [90, 225, 430, 574], dateY: 403, dateFont: 88, headerWidths: [86, 90, 86, 93],
       rowTop: 540, rowHeight: 59, rowStep: 77, cells: [[118, 430], [441, 529], [540, 684]],
-      numberRight: 225, numberWidth: 101, nameX: 235, nameWidth: 190,
-      rowDateX: 485, dateWidth: 83, amountRight: 677, amountWidth: 129,
-      numberFont: 29, nameFont: 27, rowDateFont: 29, valueFont: 28 }
+      numberRight: 181, numberWidth: 59, numberSuffixX: 187, nameX: 235, nameWidth: 190,
+      rowDateX: 485, dateWidth: 83, amountRight: 654, amountWidth: 108, amountSuffixX: 661,
+      numberFont: 46, nameFont: 39, rowDateFont: 42, valueFont: 48, suffixFont: 18, suffixY: 14 }
   };
-  const state = { parsed: RankingCore.parseMail(''), type: 'pachinko', format: 'web', periodKey: null };
+  const state = { parsed: RankingCore.parseMail(''), format: 'web', periodKey: null };
   const imageCache = {};
 
   function loadImage(url) {
@@ -58,20 +58,16 @@
     return { start: { year, month: start.month, day: start.day }, end: { year, month: end.month, day: end.day } };
   }
 
-  const toneColors = { weekday: '#111111', saturday: '#0c4ac4', holiday: '#c11320' };
+  const toneColors = { weekday: '#111111', saturday: '#0648d5', holiday: '#e00018' };
 
-  function drawFitted(ctx, text, x, y, width, initial, minimum, align, outline = false) {
+  function drawFitted(ctx, text, x, y, width, initial, minimum, align, font = 'Impact, "Arial Narrow", sans-serif') {
     let size = initial;
     ctx.textAlign = align;
-    ctx.font = `700 ${size}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
+    ctx.font = `900 ${size}px ${font}`;
     while (size > minimum) {
       if (ctx.measureText(text).width <= width) break;
       size--;
-      ctx.font = `700 ${size}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
-    }
-    if (outline) {
-      ctx.strokeStyle = '#fff'; ctx.lineJoin = 'round'; ctx.lineWidth = size > 50 ? 8 : 5;
-      ctx.strokeText(text, x, y, width);
+      ctx.font = `900 ${size}px ${font}`;
     }
     ctx.fillText(text, x, y, width);
   }
@@ -80,7 +76,7 @@
     // Try the largest bold font that fits the cell, using up to three lines.
     let chosen;
     for (let size = g.nameFont; size >= (g.rowHeight > 80 ? 18 : 12); size--) {
-      ctx.font = `700 ${size}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
+      ctx.font = `900 ${size}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
       const lines = [''];
       for (const char of Array.from(name)) {
         const last = lines.length - 1;
@@ -89,9 +85,9 @@
       }
       if (lines.length <= 3 && lines.length * (size + 2) <= g.rowHeight - 6) { chosen = { size, lines }; break; }
     }
-    if (!chosen) { ctx.font = '700 12px sans-serif'; chosen = { size: 12, lines: [name] }; }
+    if (!chosen) { ctx.font = '900 12px sans-serif'; chosen = { size: 12, lines: [name] }; }
     ctx.textAlign = 'left';
-    ctx.font = `700 ${chosen.size}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
+    ctx.font = `900 ${chosen.size}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
     const step = chosen.size + 2;
     chosen.lines.forEach((line, n) => ctx.fillText(line, g.nameX, y + (n - (chosen.lines.length - 1) / 2) * step, g.nameWidth));
   }
@@ -106,13 +102,14 @@
     if (!model) return;
     const g = layout[format];
     ctx.textBaseline = 'middle';
-    const parts = [
-      [model.start.month, model.start], [model.start.day, model.start],
-      [model.end.month, model.end], [model.end.day, model.end]
-    ];
-    parts.forEach(([value, date], i) => {
-      ctx.fillStyle = toneColors[RankingCore.dateTone(date)];
-      drawFitted(ctx, String(value), g.dateX[i], g.dateY, format === 'web' ? 115 : 65, g.dateFont, g.dateFont - 8, 'center', true);
+    const parts = [model.start.month, model.start.day, model.end.month, model.end.day];
+    parts.forEach((value, i) => {
+      ctx.save();
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = '#061027'; ctx.shadowBlur = format === 'web' ? 9 : 5;
+      ctx.shadowOffsetX = 3; ctx.shadowOffsetY = format === 'web' ? 7 : 4;
+      drawFitted(ctx, String(value), g.dateX[i], g.dateY, g.headerWidths[i], g.dateFont, g.dateFont - 24, 'center');
+      ctx.restore();
     });
     // Remove colored placeholders built into the original Excel backgrounds.
     ctx.fillStyle = '#fff';
@@ -123,30 +120,37 @@
     state.parsed.groups[type].slice(0, 10).forEach((row, i) => {
       const y = Math.round(g.rowTop + i * g.rowStep + g.rowHeight / 2);
       ctx.fillStyle = toneColors.weekday;
-      drawFitted(ctx, `${row.number}番台`, g.numberRight, y, g.numberWidth, g.numberFont, g.numberFont - 12, 'right');
+      drawFitted(ctx, String(row.number), g.numberRight, y, g.numberWidth, g.numberFont, g.numberFont - 22, 'right');
+      drawFitted(ctx, '番台', g.numberSuffixX, y + g.suffixY, g.nameX - g.numberSuffixX - 10, g.suffixFont, g.suffixFont - 4, 'left', '"Yu Gothic", Meiryo, sans-serif');
       drawName(ctx, row.name, g, y);
       const date = RankingCore.rowDate(row, model);
       ctx.fillStyle = toneColors[RankingCore.dateTone(date)];
       drawFitted(ctx, `${row.month}/${row.day}`, g.rowDateX, y, g.dateWidth, g.rowDateFont, g.rowDateFont - 8, 'center');
       ctx.fillStyle = toneColors.weekday;
-      drawFitted(ctx, `${row.amount}${type === 'pachinko' ? '玉' : '枚'}`, g.amountRight, y, g.amountWidth, g.valueFont, g.valueFont - 10, 'right');
+      drawFitted(ctx, String(row.amount), g.amountRight, y, g.amountWidth, g.valueFont, g.valueFont - 27, 'right');
+      drawFitted(ctx, type === 'pachinko' ? '玉' : '枚', g.amountSuffixX, y + g.suffixY, g.cells[2][1] - g.amountSuffixX - 5, g.suffixFont, g.suffixFont - 4, 'left', '"Yu Gothic", Meiryo, sans-serif');
     });
   }
 
   let drawVersion = 0;
   async function updatePreview() {
     const current = ++drawVersion;
-    const rows = state.parsed.groups[state.type];
     const period = dates();
-    $('download').disabled = !rows.length || !period;
     $('downloadAll').disabled = !period || !(state.parsed.groups.pachinko.length || state.parsed.groups.slot.length);
     const coverage = period && (period.start.year < 1955 || period.end.year > JapanHolidayData.throughYear)
       ? ' この年の公式祝日データは未収録です。土日だけ色分けします。' : '';
-    $('previewStatus').textContent = !rows.length ? 'この種類のランキングは見つかりません。' : !period ? '開始日と終了日（年・月・日）を正しく入力してください。' : `${rows.length}件を読み取りました。画像には上位${Math.min(rows.length, 10)}件を表示します。${coverage}`;
-    try {
-      await render(state.type, state.format, $('preview'));
-      if (current !== drawVersion) updatePreview();
-    } catch (err) { $('previewStatus').textContent = err.message; $('download').disabled = true; }
+    const typeViews = [
+      ['pachinko', 'previewP', 'statusP', 'downloadP'],
+      ['slot', 'previewS', 'statusS', 'downloadS']
+    ];
+    await Promise.all(typeViews.map(async ([type, canvasId, statusId, buttonId]) => {
+      const rows = state.parsed.groups[type];
+      $(buttonId).disabled = !rows.length || !period;
+      $(statusId).textContent = !rows.length ? 'この種類のランキングは見つかりません。' : !period ? '開始日と終了日（年・月・日）を確認してください。' : `上位${Math.min(rows.length, 10)}件を表示中。${coverage}`;
+      try { await render(type, state.format, $(canvasId)); }
+      catch (err) { $(statusId).textContent = err.message; $(buttonId).disabled = true; }
+    }));
+    if (current !== drawVersion) updatePreview();
   }
 
   function updateMail() {
@@ -159,13 +163,16 @@
     const total = p.groups.pachinko.length + p.groups.slot.length;
     $('pCount').textContent = p.groups.pachinko.length;
     $('sCount').textContent = p.groups.slot.length;
-    if (p.groups[state.type].length === 0 && total) state.type = p.groups.pachinko.length ? 'pachinko' : 'slot';
-    document.querySelectorAll('.type-btn').forEach((b) => b.classList.toggle('active', b.dataset.type === state.type));
     const parts = total ? [`パチンコ ${p.groups.pachinko.length}件、スロット ${p.groups.slot.length}件を読み取りました。`] : ['ランキング行を待っています。'];
     if (p.invalid.length) parts.push(`確認が必要な行 ${p.invalid.length}件（${p.invalid.map((x) => x.line).join('、')}行目）。`);
     if (total > 0 && !p.period) parts.push('期間が見つからないため、今年とランキングの日付で仮入力しました。年と期間を確認してください。');
     if (p.groups.pachinko.length > 10 || p.groups.slot.length > 10) parts.push('各種類の先頭10件だけ画像に表示します。');
     $('readStatus').textContent = parts.join(' ');
+    $('periodStatus').textContent = p.period
+      ? `本文から期間を自動取得しました：${p.period.start.year}年${p.period.start.month}月${p.period.start.day}日〜${p.period.end.year}年${p.period.end.month}月${p.period.end.day}日。違う場合だけ修正してください。`
+      : period ? '本文に期間がないため、ランキング行の日付から仮入力しました。年と期間を確認してください。'
+        : '本文の期間を自動取得します。必要な場合だけ下の日付を修正してください。';
+    if (total && !p.period) $('dateDetails').open = true;
     updatePreview();
   }
 
@@ -202,19 +209,18 @@
     return new Blob([...chunks, ...central, end], { type: 'application/zip' });
   }
 
-  document.querySelectorAll('.type-btn').forEach((button) => button.addEventListener('click', () => {
-    state.type = button.dataset.type;
-    document.querySelectorAll('.type-btn').forEach((b) => b.classList.toggle('active', b === button));
-    updatePreview();
-  }));
   $('mailText').addEventListener('input', updateMail);
   $('format').addEventListener('change', () => { state.format = $('format').value; updatePreview(); });
-  ['startYear', 'startMonth', 'startDay', 'endYear', 'endMonth', 'endDay'].forEach((id) => $(id).addEventListener('input', updatePreview));
-  $('download').addEventListener('click', async () => {
-    if ($('download').disabled) return;
-    const blob = await blobFromCanvas($('preview'));
-    saveBlob(blob, fileName(state.type, state.format));
-  });
+  ['startYear', 'startMonth', 'startDay', 'endYear', 'endMonth', 'endDay'].forEach((id) => $(id).addEventListener('input', () => {
+    $('periodStatus').textContent = '日付を手動で修正しています。画像にもすぐ反映されます。';
+    updatePreview();
+  }));
+  for (const [type, buttonId, canvasId] of [['pachinko', 'downloadP', 'previewP'], ['slot', 'downloadS', 'previewS']]) {
+    $(buttonId).addEventListener('click', async () => {
+      if ($(buttonId).disabled) return;
+      saveBlob(await blobFromCanvas($(canvasId)), fileName(type, state.format));
+    });
+  }
   $('downloadAll').addEventListener('click', async () => {
     if ($('downloadAll').disabled) return;
     const button = $('downloadAll'); button.disabled = true; button.textContent = 'JPEGを作成中…';
@@ -222,15 +228,12 @@
       const files = [];
       for (const type of ['pachinko', 'slot']) {
         if (!state.parsed.groups[type].length) continue;
-        for (const format of ['web', 'signage']) {
-          const canvas = document.createElement('canvas');
-          await render(type, format, canvas);
-          files.push({ name: fileName(type, format), bytes: new Uint8Array(await (await blobFromCanvas(canvas)).arrayBuffer()) });
-        }
+        const canvas = $(type === 'pachinko' ? 'previewP' : 'previewS');
+        files.push({ name: fileName(type, state.format), bytes: new Uint8Array(await (await blobFromCanvas(canvas)).arrayBuffer()) });
       }
       saveBlob(zipFiles(files), 'ranking-jpegs.zip');
-    } catch (err) { $('previewStatus').textContent = err.message; }
-    finally { button.textContent = '読み取った画像をまとめて保存'; updatePreview(); }
+    } catch (err) { $('readStatus').textContent = err.message; }
+    finally { button.textContent = 'パチンコ・スロットをまとめて保存（ZIP）'; updatePreview(); }
   });
   updatePreview();
 })();
