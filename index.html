@@ -23,11 +23,11 @@
         <p id="readStatus" class="status" role="status" aria-live="polite">本文を貼ると自動で読み取ります。</p>
 
         <div class="heading second"><span class="step">02</span><h2>日付を確認</h2></div>
-        <p class="hint">本文の期間から自動入力します。必要なら修正できます。</p>
+        <p class="hint">本文の期間から自動入力します。曜日と祝日の判定に年を使うので確認してください。</p>
         <div class="date-grid">
-          <fieldset><legend>開始日</legend><label>月 <input id="startMonth" type="number" min="1" max="12" inputmode="numeric"></label><label>日 <input id="startDay" type="number" min="1" max="31" inputmode="numeric"></label></fieldset>
+          <fieldset><legend>開始日</legend><label>年 <input id="startYear" type="number" min="1900" max="2100" inputmode="numeric"></label><label>月 <input id="startMonth" type="number" min="1" max="12" inputmode="numeric"></label><label>日 <input id="startDay" type="number" min="1" max="31" inputmode="numeric"></label></fieldset>
           <span class="date-arrow" aria-hidden="true">→</span>
-          <fieldset><legend>終了日</legend><label>月 <input id="endMonth" type="number" min="1" max="12" inputmode="numeric"></label><label>日 <input id="endDay" type="number" min="1" max="31" inputmode="numeric"></label></fieldset>
+          <fieldset><legend>終了日</legend><label>年 <input id="endYear" type="number" min="1900" max="2100" inputmode="numeric"></label><label>月 <input id="endMonth" type="number" min="1" max="12" inputmode="numeric"></label><label>日 <input id="endDay" type="number" min="1" max="31" inputmode="numeric"></label></fieldset>
         </div>
         <p class="privacy">本文はブラウザー内だけで処理します。サーバーには送信しません。</p>
       </section>
@@ -49,6 +49,7 @@
     </div>
     <footer>提供されたExcelの背景画像を使用 · 無料の静的Webアプリ</footer>
   </main>
+  <script src="holidays.js"></script>
   <script src="core.js"></script>
   <script src="app.js"></script>
 </body>

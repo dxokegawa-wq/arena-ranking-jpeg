@@ -1,8 +1,8 @@
 (function (root, factory) {
-  const api = factory();
+  const api = factory(root);
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.RankingCore = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
   'use strict';
 
   const normal = (s) => String(s || '').replace(/[①-⑳]/g, (c) => `${c.codePointAt(0) - 9311}位`).normalize('NFKC').replace(/\u00a0/g, ' ');
@@ -12,17 +12,36 @@
     const date = '(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月\\s*(\\d{1,2})\\s*日';
     const match = source.match(new RegExp(date + '[^\\d]{0,15}[～〜~ー－-][^\\d]{0,15}' + date));
     if (!match) return null;
-    return {
+    const period = {
       start: { year: +match[1], month: +match[2], day: +match[3] },
       end: { year: +match[4], month: +match[5], day: +match[6] }
     };
+    return validDate(period.start) && validDate(period.end) ? period : null;
   }
 
   function validDate(date) {
-    if (!date || date.month < 1 || date.month > 12 || date.day < 1 || date.day > 31) return false;
-    if (!date.year) return true;
-    const check = new Date(date.year, date.month - 1, date.day);
-    return check.getFullYear() === date.year && check.getMonth() + 1 === date.month && check.getDate() === date.day;
+    if (!date || !Number.isInteger(date.year) || date.year < 1900 || date.year > 2100 || date.month < 1 || date.month > 12 || date.day < 1 || date.day > 31) return false;
+    const check = new Date(Date.UTC(date.year, date.month - 1, date.day));
+    return check.getUTCFullYear() === date.year && check.getUTCMonth() + 1 === date.month && check.getUTCDate() === date.day;
+  }
+
+  function dateTone(date, holidayData = root.JapanHolidayData) {
+    if (!validDate(date)) return 'weekday';
+    const day = new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay();
+    const key = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
+    if (day === 0 || holidayData?.dates.has(key)) return 'holiday';
+    return day === 6 ? 'saturday' : 'weekday';
+  }
+
+  function rowDate(row, period) {
+    const begin = Date.UTC(period.start.year, period.start.month - 1, period.start.day);
+    const end = Date.UTC(period.end.year, period.end.month - 1, period.end.day);
+    for (const year of new Set([period.start.year, period.end.year])) {
+      const date = { year, month: row.month, day: row.day };
+      const time = Date.UTC(year, row.month - 1, row.day);
+      if (validDate(date) && time >= begin && time <= end) return date;
+    }
+    return { year: period.end.year, month: row.month, day: row.day };
   }
 
   function parseMail(text) {
@@ -57,5 +76,5 @@
     return { groups, period: readPeriod(text), invalid };
   }
 
-  return { parseMail, readPeriod, validDate };
+  return { parseMail, readPeriod, validDate, dateTone, rowDate };
 });
