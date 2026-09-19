@@ -99,23 +99,83 @@
     ctx.restore();
   }
 
-  function drawName(ctx, name, g, y) {
-    // Keep every machine name on one line and use the largest size that fits.
-    let size = g.nameFont;
-    const minimum = g.rowHeight > 80 ? 15 : 10;
-    const nameFont = '"Arial Black", "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif';
+  const nameFont = '"Arial Black", "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif';
+
+  function fittedNameSize(ctx, lines, initial, minimum, width) {
+    let size = initial;
     while (size > minimum) {
       ctx.font = `900 ${size}px ${nameFont}`;
-      if (ctx.measureText(name).width <= g.nameWidth) break;
+      if (lines.every((line) => ctx.measureText(line).width <= width)) break;
       size--;
     }
-    ctx.textAlign = 'left';
+    return size;
+  }
+
+  function nameBreakCandidates(name) {
+    const candidates = new Map();
+    const add = (index, bonus = 0) => {
+      if (index > 1 && index < name.length - 1) candidates.set(index, Math.max(candidates.get(index) || 0, bonus));
+    };
+    try {
+      const segments = [...new Intl.Segmenter('ja', { granularity: 'word' }).segment(name)];
+      segments.slice(0, -1).forEach((part) => add(part.index + part.segment.length, 12));
+    } catch (_) {
+      for (let i = 2; i < name.length - 1; i++) add(i);
+    }
+    // Prefer the start of a subtitle or edition name. This makes names such as
+    // 「P新世紀エヴァンゲリオン15／未来への咆哮F」 read naturally.
+    ['未来への', 'はじまりの', '海門決戦', '神々の', '先輩の', 'ファイター', '紅丸', '覚醒', 'Ver.'].forEach((phrase) => {
+      const index = name.indexOf(phrase);
+      if (index > 0) add(index, 70);
+    });
+    for (let i = 2; i < name.length - 1; i++) {
+      const before = name[i - 1], after = name[i];
+      if (/\d/.test(before) && /[一-龯ぁ-んァ-ヶ]/.test(after)) add(i, 55);
+      if (/[・／/―ー\-]/.test(before) || /\s/.test(before) || /\s/.test(after)) add(i, 35);
+    }
+    return candidates;
+  }
+
+  function drawNameLine(ctx, text, x, y, width, size, align) {
+    ctx.textAlign = align;
     ctx.font = `900 ${size}px ${nameFont}`;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = ctx.fillStyle;
-    ctx.lineWidth = Math.max(g.rowHeight > 80 ? 1.2 : 0.8, Math.min(g.rowHeight > 80 ? 3.8 : 2.3, size * 0.065));
-    ctx.strokeText(name, g.nameX, y, g.nameWidth);
-    ctx.fillText(name, g.nameX, y, g.nameWidth);
+    ctx.lineWidth = Math.max(0.8, Math.min(size > 25 ? 3 : 1.8, size * 0.05));
+    ctx.strokeText(text, x, y, width);
+    ctx.fillText(text, x, y, width);
+  }
+
+  function drawName(ctx, name, g, y) {
+    const minimum = g.rowHeight > 80 ? 15 : 9;
+    ctx.font = `900 ${g.nameFont}px ${nameFont}`;
+    if (ctx.measureText(name).width <= g.nameWidth) {
+      drawNameLine(ctx, name, g.nameX, y, g.nameWidth, g.nameFont, 'left');
+      return;
+    }
+
+    const twoLineMax = g.rowHeight > 80 ? 41 : 23;
+    let best = null;
+    for (const [index, bonus] of nameBreakCandidates(name)) {
+      const lines = [name.slice(0, index).trim(), name.slice(index).trim()];
+      if (!lines[0] || !lines[1]) continue;
+      const size = fittedNameSize(ctx, lines, twoLineMax, minimum, g.nameWidth);
+      ctx.font = `900 ${size}px ${nameFont}`;
+      const widths = lines.map((line) => ctx.measureText(line).width);
+      const balance = Math.abs(widths[0] - widths[1]) / Math.max(widths[0] + widths[1], 1);
+      const score = size * 10 + bonus - balance * 18;
+      if (!best || score > best.score) best = { lines, size, score };
+    }
+
+    if (!best) {
+      const middle = Math.ceil(name.length / 2);
+      best = { lines: [name.slice(0, middle), name.slice(middle)], size: minimum };
+      best.size = fittedNameSize(ctx, best.lines, twoLineMax, minimum, g.nameWidth);
+    }
+    const center = g.nameX + g.nameWidth / 2;
+    const gap = best.size * 0.96;
+    drawNameLine(ctx, best.lines[0], center, y - gap / 2, g.nameWidth, best.size, 'center');
+    drawNameLine(ctx, best.lines[1], center, y + gap / 2, g.nameWidth, best.size, 'center');
   }
 
   async function render(type, format, targetCanvas) {
