@@ -113,7 +113,7 @@
     ctx.font = `900 ${size}px ${nameFont}`;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = ctx.fillStyle;
-    ctx.lineWidth = Math.max(1, Math.min(g.rowHeight > 80 ? 2.6 : 1.6, size * 0.05));
+    ctx.lineWidth = Math.max(g.rowHeight > 80 ? 1.2 : 0.8, Math.min(g.rowHeight > 80 ? 3.8 : 2.3, size * 0.065));
     ctx.strokeText(name, g.nameX, y, g.nameWidth);
     ctx.fillText(name, g.nameX, y, g.nameWidth);
   }
