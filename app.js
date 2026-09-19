@@ -111,31 +111,6 @@
     return size;
   }
 
-  function nameBreakCandidates(name) {
-    const candidates = new Map();
-    const add = (index, bonus = 0) => {
-      if (index > 1 && index < name.length - 1) candidates.set(index, Math.max(candidates.get(index) || 0, bonus));
-    };
-    try {
-      const segments = [...new Intl.Segmenter('ja', { granularity: 'word' }).segment(name)];
-      segments.slice(0, -1).forEach((part) => add(part.index + part.segment.length, 12));
-    } catch (_) {
-      for (let i = 2; i < name.length - 1; i++) add(i);
-    }
-    // Prefer the start of a subtitle or edition name. This makes names such as
-    // 「P新世紀エヴァンゲリオン15／未来への咆哮F」 read naturally.
-    ['未来への', 'はじまりの', '海門決戦', '神々の', '先輩の', 'ファイター', '紅丸', '覚醒', 'Ver.'].forEach((phrase) => {
-      const index = name.indexOf(phrase);
-      if (index > 0) add(index, 70);
-    });
-    for (let i = 2; i < name.length - 1; i++) {
-      const before = name[i - 1], after = name[i];
-      if (/\d/.test(before) && /[一-龯ぁ-んァ-ヶ]/.test(after)) add(i, 55);
-      if (/[・／/―ー\-]/.test(before) || /\s/.test(before) || /\s/.test(after)) add(i, 35);
-    }
-    return candidates;
-  }
-
   function drawNameLine(ctx, text, x, y, width, size, align) {
     ctx.textAlign = align;
     ctx.font = `900 ${size}px ${nameFont}`;
@@ -148,34 +123,23 @@
 
   function drawName(ctx, name, g, y) {
     const minimum = g.rowHeight > 80 ? 15 : 9;
-    ctx.font = `900 ${g.nameFont}px ${nameFont}`;
-    if (ctx.measureText(name).width <= g.nameWidth) {
-      drawNameLine(ctx, name, g.nameX, y, g.nameWidth, g.nameFont, 'left');
+    const parts = String(name).split('\n').map((line) => line.trim()).filter(Boolean);
+    if (parts.length <= 1) {
+      const line = parts[0] || '';
+      const size = fittedNameSize(ctx, [line], g.nameFont, minimum, g.nameWidth);
+      drawNameLine(ctx, line, g.nameX, y, g.nameWidth, size, 'left');
       return;
     }
 
+    // Only an Enter inserted by the user creates a second line. If more than
+    // one Enter is present, keep the first line and combine the rest on line 2.
+    const lines = [parts[0], parts.slice(1).join(' ')];
     const twoLineMax = g.rowHeight > 80 ? 41 : 23;
-    let best = null;
-    for (const [index, bonus] of nameBreakCandidates(name)) {
-      const lines = [name.slice(0, index).trim(), name.slice(index).trim()];
-      if (!lines[0] || !lines[1]) continue;
-      const size = fittedNameSize(ctx, lines, twoLineMax, minimum, g.nameWidth);
-      ctx.font = `900 ${size}px ${nameFont}`;
-      const widths = lines.map((line) => ctx.measureText(line).width);
-      const balance = Math.abs(widths[0] - widths[1]) / Math.max(widths[0] + widths[1], 1);
-      const score = size * 10 + bonus - balance * 18;
-      if (!best || score > best.score) best = { lines, size, score };
-    }
-
-    if (!best) {
-      const middle = Math.ceil(name.length / 2);
-      best = { lines: [name.slice(0, middle), name.slice(middle)], size: minimum };
-      best.size = fittedNameSize(ctx, best.lines, twoLineMax, minimum, g.nameWidth);
-    }
+    const size = fittedNameSize(ctx, lines, twoLineMax, minimum, g.nameWidth);
     const center = g.nameX + g.nameWidth / 2;
-    const gap = best.size * 0.96;
-    drawNameLine(ctx, best.lines[0], center, y - gap / 2, g.nameWidth, best.size, 'center');
-    drawNameLine(ctx, best.lines[1], center, y + gap / 2, g.nameWidth, best.size, 'center');
+    const gap = size * 0.96;
+    drawNameLine(ctx, lines[0], center, y - gap / 2, g.nameWidth, size, 'center');
+    drawNameLine(ctx, lines[1], center, y + gap / 2, g.nameWidth, size, 'center');
   }
 
   async function render(type, format, targetCanvas) {
