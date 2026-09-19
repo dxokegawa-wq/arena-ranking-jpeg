@@ -19,6 +19,44 @@
   };
   const state = { parsed: RankingCore.parseMail(''), format: 'web', periodKey: null };
   const imageCache = {};
+  const nameBreakStorageKey = 'arena-ranking-name-breaks-v1';
+  const nameBreaks = loadNameBreaks();
+
+  function nameKey(name) {
+    return String(name || '').replace(/\s+/g, '');
+  }
+
+  function loadNameBreaks() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(nameBreakStorageKey) || '{}');
+      return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function rememberManualBreaks(parsed) {
+    let changed = 0;
+    for (const row of [...parsed.groups.pachinko, ...parsed.groups.slot]) {
+      const parts = String(row.name).split('\n').map((line) => line.trim()).filter(Boolean);
+      if (parts.length < 2) continue;
+      const displayName = `${parts[0]}\n${parts.slice(1).join(' ')}`;
+      const key = nameKey(displayName);
+      if (key && nameBreaks[key] !== displayName) {
+        nameBreaks[key] = displayName;
+        changed++;
+      }
+    }
+    if (changed) {
+      try { localStorage.setItem(nameBreakStorageKey, JSON.stringify(nameBreaks)); } catch (_) {}
+    }
+    return changed;
+  }
+
+  function rememberedName(name) {
+    if (String(name).includes('\n')) return name;
+    return nameBreaks[nameKey(name)] || name;
+  }
 
   function loadImage(url) {
     if (!imageCache[url]) imageCache[url] = new Promise((resolve, reject) => {
@@ -122,6 +160,7 @@
   }
 
   function drawName(ctx, name, g, y) {
+    name = rememberedName(name);
     const minimum = g.rowHeight > 80 ? 15 : 9;
     const parts = String(name).split('\n').map((line) => line.trim()).filter(Boolean);
     if (parts.length <= 1) {
@@ -209,6 +248,7 @@
   function updateMail() {
     state.parsed = RankingCore.parseMail($('mailText').value);
     const p = state.parsed;
+    const remembered = rememberManualBreaks(p);
     const period = p.period || inferDates(p);
     const key = p.period ? JSON.stringify(p.period) : null;
     if (period && key !== state.periodKey && (p.period || !dates())) setDates(period);
@@ -217,6 +257,7 @@
     $('pCount').textContent = p.groups.pachinko.length;
     $('sCount').textContent = p.groups.slot.length;
     const parts = total ? [`パチンコ ${p.groups.pachinko.length}件、スロット ${p.groups.slot.length}件を読み取りました。`] : ['ランキング行を待っています。'];
+    if (remembered) parts.push(`${remembered}件の機種名の改行位置を記憶しました。`);
     if (p.invalid.length) parts.push(`確認が必要な行 ${p.invalid.length}件（${p.invalid.map((x) => x.line).join('、')}行目）。`);
     if (total > 0 && !p.period) parts.push('期間が見つからないため、今年とランキングの日付で仮入力しました。年と期間を確認してください。');
     if (p.groups.pachinko.length > 10 || p.groups.slot.length > 10) parts.push('各種類の先頭10件だけ画像に表示します。');
