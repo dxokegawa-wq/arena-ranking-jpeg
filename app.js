@@ -17,10 +17,36 @@
       rowDateX: 485, dateWidth: 83, amountRight: 654, amountWidth: 108, amountSuffixX: 661,
       numberFont: 46, nameFont: 39, rowDateFont: 42, valueFont: 48, suffixFont: 18, suffixY: 14 }
   };
-  const state = { parsed: RankingCore.parseMail(''), format: 'web', periodKey: null };
+  const typographyStorageKey = 'arena-ranking-typography-v1';
+  const savedTypography = loadTypography();
+  const state = {
+    parsed: RankingCore.parseMail(''), format: 'web', periodKey: null,
+    nameWeight: savedTypography.weight, nameScale: savedTypography.scale
+  };
   const imageCache = {};
   const nameBreakStorageKey = 'arena-ranking-name-breaks-v1';
   const nameBreaks = loadNameBreaks();
+
+  function loadTypography() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(typographyStorageKey) || '{}');
+      const weight = [500, 600, 700, 800, 900].includes(+saved.weight) ? +saved.weight : 800;
+      const scale = Number.isFinite(+saved.scale) && +saved.scale >= 0.75 && +saved.scale <= 1.2 ? +saved.scale : 1;
+      return { weight, scale };
+    } catch (_) {
+      return { weight: 800, scale: 1 };
+    }
+  }
+
+  function saveTypography() {
+    try { localStorage.setItem(typographyStorageKey, JSON.stringify({ weight: state.nameWeight, scale: state.nameScale })); } catch (_) {}
+  }
+
+  function updateTypographyLabels() {
+    const labels = { 500: '細い', 600: 'やや細い', 700: '標準', 800: 'やや太い', 900: '太い' };
+    $('nameWeightValue').textContent = labels[state.nameWeight];
+    $('nameSizeValue').textContent = `${Math.round(state.nameScale * 100)}%`;
+  }
 
   function nameKey(name) {
     return String(name || '').replace(/\s+/g, '');
@@ -137,12 +163,12 @@
     ctx.restore();
   }
 
-  const nameFont = '"Arial Black", "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif';
+  const nameFont = 'Arial, "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif';
 
   function fittedNameSize(ctx, lines, initial, minimum, width) {
     let size = initial;
     while (size > minimum) {
-      ctx.font = `900 ${size}px ${nameFont}`;
+      ctx.font = `${state.nameWeight} ${size}px ${nameFont}`;
       if (lines.every((line) => ctx.measureText(line).width <= width)) break;
       size--;
     }
@@ -151,21 +177,22 @@
 
   function drawNameLine(ctx, text, x, y, width, size, align) {
     ctx.textAlign = align;
-    ctx.font = `900 ${size}px ${nameFont}`;
+    ctx.font = `${state.nameWeight} ${size}px ${nameFont}`;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = ctx.fillStyle;
-    ctx.lineWidth = Math.max(0.8, Math.min(size > 25 ? 3 : 1.8, size * 0.05));
-    ctx.strokeText(text, x, y, width);
+    const stroke = Math.max(0, (state.nameWeight - 500) / 400) * Math.min(size > 25 ? 1.8 : 1.1, size * 0.03);
+    if (stroke > 0.1) { ctx.lineWidth = stroke; ctx.strokeText(text, x, y, width); }
     ctx.fillText(text, x, y, width);
   }
 
   function drawName(ctx, name, g, y) {
     name = rememberedName(name);
     const minimum = g.rowHeight > 80 ? 15 : 9;
+    const oneLineMax = Math.round(g.nameFont * state.nameScale);
     const parts = String(name).split('\n').map((line) => line.trim()).filter(Boolean);
     if (parts.length <= 1) {
       const line = parts[0] || '';
-      const size = fittedNameSize(ctx, [line], g.nameFont, minimum, g.nameWidth);
+      const size = fittedNameSize(ctx, [line], oneLineMax, minimum, g.nameWidth);
       drawNameLine(ctx, line, g.nameX, y, g.nameWidth, size, 'left');
       return;
     }
@@ -173,7 +200,7 @@
     // Only an Enter inserted by the user creates a second line. If more than
     // one Enter is present, keep the first line and combine the rest on line 2.
     const lines = [parts[0], parts.slice(1).join(' ')];
-    const twoLineMax = g.rowHeight > 80 ? 41 : 23;
+    const twoLineMax = Math.round((g.rowHeight > 80 ? 41 : 23) * state.nameScale);
     const size = fittedNameSize(ctx, lines, twoLineMax, minimum, g.nameWidth);
     const center = g.nameX + g.nameWidth / 2;
     const gap = size * 0.96;
@@ -305,6 +332,17 @@
 
   $('mailText').addEventListener('input', updateMail);
   $('format').addEventListener('change', () => { state.format = $('format').value; updatePreview(); });
+  $('nameWeight').value = state.nameWeight;
+  $('nameSize').value = Math.round(state.nameScale * 100);
+  updateTypographyLabels();
+  $('nameWeight').addEventListener('input', () => {
+    state.nameWeight = +$('nameWeight').value;
+    updateTypographyLabels(); saveTypography(); updatePreview();
+  });
+  $('nameSize').addEventListener('input', () => {
+    state.nameScale = +$('nameSize').value / 100;
+    updateTypographyLabels(); saveTypography(); updatePreview();
+  });
   ['startYear', 'startMonth', 'startDay', 'endYear', 'endMonth', 'endDay'].forEach((id) => $(id).addEventListener('input', () => {
     $('periodStatus').textContent = '日付を手動で修正しています。画像にもすぐ反映されます。';
     updatePreview();

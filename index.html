@@ -41,6 +41,11 @@
           <p class="hint">貼り付けるとパチンコとスロットを同時に作成します。</p>
           <label class="format-picker">画像サイズ <select id="format"><option value="web">Web用 1600×2266</option><option value="signage">サイネージ用 740×1350</option></select></label>
         </div>
+        <div class="type-controls" aria-label="機種名の文字調整">
+          <label>機種名の太さ <input id="nameWeight" type="range" min="500" max="900" step="100" value="800"><output id="nameWeightValue" for="nameWeight">やや太い</output></label>
+          <label>機種名の大きさ <input id="nameSize" type="range" min="75" max="120" step="5" value="100"><output id="nameSizeValue" for="nameSize">100%</output></label>
+          <p>変更は画像へすぐ反映され、このブラウザーに保存されます。</p>
+        </div>
         <div class="previews">
           <article class="result-card">
             <div class="result-head"><h3>パチンコ <span id="pCount">0</span>件</h3><button id="downloadP" type="button" disabled>JPEGを保存</button></div>
