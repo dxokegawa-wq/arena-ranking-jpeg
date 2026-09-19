@@ -103,13 +103,18 @@
     // Keep every machine name on one line and use the largest size that fits.
     let size = g.nameFont;
     const minimum = g.rowHeight > 80 ? 15 : 10;
+    const nameFont = '"Arial Black", "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif';
     while (size > minimum) {
-      ctx.font = `900 ${size}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
+      ctx.font = `900 ${size}px ${nameFont}`;
       if (ctx.measureText(name).width <= g.nameWidth) break;
       size--;
     }
     ctx.textAlign = 'left';
-    ctx.font = `900 ${size}px "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif`;
+    ctx.font = `900 ${size}px ${nameFont}`;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = ctx.fillStyle;
+    ctx.lineWidth = Math.max(1, Math.min(g.rowHeight > 80 ? 2.6 : 1.6, size * 0.05));
+    ctx.strokeText(name, g.nameX, y, g.nameWidth);
     ctx.fillText(name, g.nameX, y, g.nameWidth);
   }
 
