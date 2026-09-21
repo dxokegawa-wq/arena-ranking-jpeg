@@ -18,6 +18,11 @@
     <div class="layout">
       <section class="panel input-panel" aria-labelledby="paste-title">
         <div class="heading"><span class="step">01</span><h2 id="paste-title">メール本文を貼り付け</h2></div>
+        <div class="gmail-import" aria-labelledby="gmail-title">
+          <div><strong id="gmail-title">桶川店 Gmailテスト</strong><span>ao.yakusyoku@gmail.com</span></div>
+          <button id="gmailImport" type="button">Gmailから最新メールを読み込む</button>
+          <p id="gmailStatus" role="status" aria-live="polite">Google公式ログイン後、直近30日からランキング形式の最新メールを探します。</p>
+        </div>
         <label for="mailText" class="field-label">件名や署名を含めて、そのまま貼り付けられます</label>
         <textarea id="mailText" spellcheck="false" placeholder="店舗：ogo\n2026年9月7日(月)～2026年9月13日(日)\n\n■4円P\n① 216番台 e東京喰種W 9/13 60610発\n...\n\n■21.7391円S\n① 53番台 L甲鉄城のカバネリ海門決戦 9/13 8326枚"></textarea>
         <p class="hint">最初はすべて1行です。機種名の途中でEnterを押すと、その改行位置をこのブラウザーに記憶します。</p>
@@ -66,6 +71,9 @@
   </main>
   <script src="holidays.js"></script>
   <script src="core.js"></script>
+  <script src="gmail-config.js"></script>
+  <script src="gmail.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="app.js"></script>
 </body>
 </html>

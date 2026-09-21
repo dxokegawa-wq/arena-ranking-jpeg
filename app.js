@@ -48,6 +48,68 @@
     $('nameSizeValue').textContent = `${Math.round(state.nameScale * 100)}%`;
   }
 
+  let gmailAccessToken = '';
+  let gmailTokenExpiresAt = 0;
+
+  function setGmailBusy(busy, message) {
+    $('gmailImport').disabled = busy;
+    $('gmailImport').textContent = busy ? 'Gmailを確認中…' : 'Gmailから最新メールを読み込む';
+    if (message) $('gmailStatus').textContent = message;
+  }
+
+  async function importLatestGmail() {
+    setGmailBusy(true, '直近30日のメールからランキングを探しています…');
+    try {
+      const found = await ArenaGmail.findLatestRanking(gmailAccessToken, RankingCore.parseMail, {
+        allowedEmail: window.ArenaGmailConfig && window.ArenaGmailConfig.allowedEmail
+      });
+      if (!found) {
+        setGmailBusy(false, '直近30日に読み取れるランキングメールが見つかりませんでした。');
+        return;
+      }
+      $('mailText').value = found.body;
+      updateMail();
+      const p = found.parsed;
+      $('gmailStatus').textContent = `「${found.subject}」を読み込み、パチンコ${p.groups.pachinko.length}件・スロット${p.groups.slot.length}件の画像を作成しました。`;
+    } catch (error) {
+      if (error.status === 401) { gmailAccessToken = ''; gmailTokenExpiresAt = 0; }
+      $('gmailStatus').textContent = error.message || 'Gmailの読み込みに失敗しました。';
+    } finally {
+      setGmailBusy(false);
+    }
+  }
+
+  function authorizeGmail() {
+    const clientId = window.ArenaGmailConfig && window.ArenaGmailConfig.clientId;
+    if (!clientId) {
+      $('gmailStatus').textContent = 'Google側の認証設定を準備中です。';
+      return;
+    }
+    if (gmailAccessToken && Date.now() < gmailTokenExpiresAt) {
+      importLatestGmail();
+      return;
+    }
+    if (!window.google || !google.accounts || !google.accounts.oauth2) {
+      $('gmailStatus').textContent = 'Googleログインを準備中です。数秒後にもう一度押してください。';
+      return;
+    }
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/gmail.readonly',
+      callback: (response) => {
+        if (response.error || !response.access_token) {
+          $('gmailStatus').textContent = response.error === 'access_denied' ? 'Gmailの読み取りが許可されませんでした。' : 'Googleログインを完了できませんでした。';
+          return;
+        }
+        gmailAccessToken = response.access_token;
+        gmailTokenExpiresAt = Date.now() + Math.max(60, (+response.expires_in || 3600) - 60) * 1000;
+        importLatestGmail();
+      },
+      error_callback: () => { $('gmailStatus').textContent = 'Googleログイン画面が閉じられました。'; }
+    });
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  }
+
   function nameKey(name) {
     return String(name || '').replace(/\s+/g, '');
   }
@@ -331,6 +393,7 @@
   }
 
   $('mailText').addEventListener('input', updateMail);
+  $('gmailImport').addEventListener('click', authorizeGmail);
   $('format').addEventListener('change', () => { state.format = $('format').value; updatePreview(); });
   $('nameWeight').value = state.nameWeight;
   $('nameSize').value = Math.round(state.nameScale * 100);
