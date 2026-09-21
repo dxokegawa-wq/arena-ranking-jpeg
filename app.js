@@ -81,6 +81,7 @@
 
   function authorizeGmail() {
     const clientId = window.ArenaGmailConfig && window.ArenaGmailConfig.clientId;
+    const allowedEmail = window.ArenaGmailConfig && window.ArenaGmailConfig.allowedEmail;
     if (!clientId) {
       $('gmailStatus').textContent = 'Google側の認証設定を準備中です。';
       return;
@@ -96,6 +97,8 @@
     const tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: 'https://www.googleapis.com/auth/gmail.readonly',
+      prompt: '',
+      login_hint: allowedEmail || undefined,
       callback: (response) => {
         if (response.error || !response.access_token) {
           $('gmailStatus').textContent = response.error === 'access_denied' ? 'Gmailの読み取りが許可されませんでした。' : 'Googleログインを完了できませんでした。';
@@ -107,7 +110,7 @@
       },
       error_callback: () => { $('gmailStatus').textContent = 'Googleログイン画面が閉じられました。'; }
     });
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+    tokenClient.requestAccessToken();
   }
 
   function nameKey(name) {
