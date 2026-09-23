@@ -92,5 +92,96 @@
     return null;
   }
 
-  return { decodeBase64Url, messageBody, headerValue, findLatestRanking };
+  function isoDate(date) {
+    return `${date.getUTCFullYear()}/${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}`;
+  }
+
+  function dateForRow(row, period) {
+    if (!period) return null;
+    const begin = Date.UTC(period.start.year, period.start.month - 1, period.start.day);
+    const end = Date.UTC(period.end.year, period.end.month - 1, period.end.day);
+    for (const year of new Set([period.start.year, period.end.year])) {
+      const time = Date.UTC(year, row.month - 1, row.day);
+      if (time >= begin && time <= end) return { year, month: row.month, day: row.day };
+    }
+    return null;
+  }
+
+  async function findMonthlyRankings(accessToken, parseMail, options = {}) {
+    const fetchFn = options.fetchFn || root.fetch.bind(root);
+    const year = +options.year;
+    const month = +options.month;
+    if (!Number.isInteger(year) || year < 1900 || year > 2100 || !Number.isInteger(month) || month < 1 || month > 12) {
+      throw new Error('月間ランキングの対象月を選んでください。');
+    }
+    const profile = await gmailRequest(accessToken, 'profile', fetchFn);
+    const allowedEmail = String(options.allowedEmail || '').trim().toLowerCase();
+    if (allowedEmail && String(profile.emailAddress || '').trim().toLowerCase() !== allowedEmail) {
+      const error = new Error(`${allowedEmail} でログインしてください。現在は ${profile.emailAddress || '別のアカウント'} です。`);
+      error.status = 403;
+      throw error;
+    }
+
+    // Include the weeks that overlap the beginning and end of the month. The
+    // ranking date inside each email decides whether each row belongs to the month.
+    const searchStart = new Date(Date.UTC(year, month - 1, 1) - 14 * 86400000);
+    const searchEnd = new Date(Date.UTC(year, month, 1) + 14 * 86400000);
+    const query = options.query || `after:${isoDate(searchStart)} before:${isoDate(searchEnd)}`;
+    const list = await gmailRequest(accessToken, `messages?labelIds=INBOX&maxResults=${options.maxResults || 500}&q=${encodeURIComponent(query)}`, fetchFn);
+    const messages = [];
+    const items = list.messages || [];
+    for (let i = 0; i < items.length; i += 10) {
+      const batch = await Promise.all(items.slice(i, i + 10).map((item) =>
+        gmailRequest(accessToken, `messages/${encodeURIComponent(item.id)}?format=full`, fetchFn)
+          .then((message) => ({ id: item.id, message }))
+      ));
+      messages.push(...batch);
+    }
+
+    const groups = { pachinko: [], slot: [] };
+    const sources = [];
+    const seenSets = new Set();
+    for (const { id, message } of messages) {
+      const body = messageBody(message.payload);
+      if (!body) continue;
+      const parsed = parseMail(body);
+      const total = parsed.groups.pachinko.length + parsed.groups.slot.length;
+      if (!total || !parsed.period) continue;
+      const setKey = JSON.stringify({ period: parsed.period, groups: parsed.groups });
+      if (seenSets.has(setKey)) continue;
+      seenSets.add(setKey);
+      let added = 0;
+      for (const type of ['pachinko', 'slot']) {
+        for (const row of parsed.groups[type]) {
+          const date = dateForRow(row, parsed.period);
+          if (!date || date.year !== year || date.month !== month) continue;
+          groups[type].push({ ...row });
+          added++;
+        }
+      }
+      if (added) sources.push({
+        id,
+        subject: headerValue(message.payload, 'Subject') || '件名なし',
+        period: parsed.period,
+        count: added
+      });
+    }
+    groups.pachinko.sort((a, b) => b.amount - a.amount);
+    groups.slot.sort((a, b) => b.amount - a.amount);
+    if (!groups.pachinko.length && !groups.slot.length) return null;
+    return {
+      parsed: {
+        groups,
+        period: {
+          start: { year, month, day: 1 },
+          end: { year, month, day: new Date(Date.UTC(year, month, 0)).getUTCDate() }
+        },
+        invalid: []
+      },
+      sources,
+      query
+    };
+  }
+
+  return { decodeBase64Url, messageBody, headerValue, findLatestRanking, findMonthlyRankings };
 });

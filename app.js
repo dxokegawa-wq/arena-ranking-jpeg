@@ -21,7 +21,7 @@
   const savedTypography = loadTypography();
   const state = {
     parsed: RankingCore.parseMail(''), format: 'web', periodKey: null,
-    nameWeight: savedTypography.weight, nameScale: savedTypography.scale
+    nameWeight: savedTypography.weight, nameScale: savedTypography.scale, rankingMode: 'weekly'
   };
   const imageCache = {};
   const nameBreakStorageKey = 'arena-ranking-name-breaks-v1';
@@ -59,7 +59,9 @@
 
   function setGmailBusy(busy, message) {
     $('gmailImport').disabled = busy;
+    $('gmailMonthlyImport').disabled = busy;
     $('gmailImport').textContent = busy ? 'Gmailを確認中…' : 'Gmailから最新メールを読み込む';
+    $('gmailMonthlyImport').textContent = busy ? '月間ランキングを作成中…' : '週間メールをまとめて月間画像を作成';
     if (message) $('gmailStatus').textContent = message;
   }
 
@@ -85,7 +87,56 @@
     }
   }
 
-  function authorizeGmail() {
+  function buildMonthlyMail(parsed) {
+    const p = parsed.period;
+    const lines = [
+      'Gmailの週間ランキングメールをまとめた月間ランキング',
+      `${p.start.year}年${p.start.month}月${p.start.day}日～${p.end.year}年${p.end.month}月${p.end.day}日`,
+      '',
+      '■4円P'
+    ];
+    parsed.groups.pachinko.forEach((row, i) => lines.push(`${i + 1}位 ${row.number}番台 ${row.name} ${row.month}/${row.day} ${row.amount}発`));
+    lines.push('', '■21.7391円S');
+    parsed.groups.slot.forEach((row, i) => lines.push(`${i + 1}位 ${row.number}番台 ${row.name} ${row.month}/${row.day} ${row.amount}枚`));
+    return lines.join('\n');
+  }
+
+  async function importMonthlyGmail() {
+    const match = $('monthlyTarget').value.match(/^(\d{4})-(\d{2})$/);
+    if (!match) {
+      $('gmailStatus').textContent = '月間ランキングの対象月を選んでください。';
+      return;
+    }
+    const year = +match[1], month = +match[2];
+    setGmailBusy(true, `${year}年${month}月と前後の週間メールを集めています…`);
+    try {
+      const found = await ArenaGmail.findMonthlyRankings(gmailAccessToken, RankingCore.parseMail, {
+        allowedEmail: window.ArenaGmailConfig && window.ArenaGmailConfig.allowedEmail,
+        year,
+        month
+      });
+      if (!found) {
+        setGmailBusy(false, `${year}年${month}月のランキングを週間メールから見つけられませんでした。`);
+        return;
+      }
+      state.rankingMode = 'monthly';
+      $('mailText').value = buildMonthlyMail(found.parsed);
+      updateMail();
+      const p = found.parsed;
+      $('gmailStatus').textContent = `${found.sources.length}通の週間メールを結合しました。全記録を数値順に並べ、パチンコ${p.groups.pachinko.length}件・スロット${p.groups.slot.length}件から月間画像を作成しました。`;
+    } catch (error) {
+      if (error.status === 401) { gmailAccessToken = ''; gmailTokenExpiresAt = 0; }
+      $('gmailStatus').textContent = error.message || '月間ランキングの作成に失敗しました。';
+    } finally {
+      setGmailBusy(false);
+    }
+  }
+
+  function runGmailImport(mode) {
+    return mode === 'monthly' ? importMonthlyGmail() : importLatestGmail();
+  }
+
+  function authorizeGmail(mode = 'weekly') {
     const clientId = window.ArenaGmailConfig && window.ArenaGmailConfig.clientId;
     const allowedEmail = window.ArenaGmailConfig && window.ArenaGmailConfig.allowedEmail;
     if (!clientId) {
@@ -93,7 +144,7 @@
       return;
     }
     if (gmailAccessToken && Date.now() < gmailTokenExpiresAt) {
-      importLatestGmail();
+      runGmailImport(mode);
       return;
     }
     if (!window.google || !google.accounts || !google.accounts.oauth2) {
@@ -112,7 +163,7 @@
         }
         gmailAccessToken = response.access_token;
         gmailTokenExpiresAt = Date.now() + Math.max(60, (+response.expires_in || 3600) - 60) * 1000;
-        importLatestGmail();
+        runGmailImport(mode);
       },
       error_callback: () => { $('gmailStatus').textContent = 'Googleログイン画面が閉じられました。'; }
     });
@@ -477,6 +528,11 @@
     const p = state.parsed;
     const remembered = rememberManualBreaks(p);
     const period = p.period || inferDates(p);
+    if (p.period) {
+      const start = Date.UTC(p.period.start.year, p.period.start.month - 1, p.period.start.day);
+      const end = Date.UTC(p.period.end.year, p.period.end.month - 1, p.period.end.day);
+      state.rankingMode = (end - start) / 86400000 >= 20 ? 'monthly' : 'weekly';
+    }
     const key = p.period ? JSON.stringify(p.period) : null;
     if (period && key !== state.periodKey && (p.period || !dates())) setDates(period);
     state.periodKey = key;
@@ -505,7 +561,7 @@
     document.body.append(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
-  const fileName = (type, format) => `ranking-${type}-${format}.jpg`;
+  const fileName = (type, format) => `ranking-${state.rankingMode === 'monthly' ? 'monthly-' : ''}${type}-${format}.jpg`;
 
   // Store-only ZIP: JPEGs are already compressed. One download avoids browsers
   // blocking several automatic downloads from a single click.
@@ -532,7 +588,8 @@
   }
 
   $('mailText').addEventListener('input', updateMail);
-  $('gmailImport').addEventListener('click', authorizeGmail);
+  $('gmailImport').addEventListener('click', () => authorizeGmail('weekly'));
+  $('gmailMonthlyImport').addEventListener('click', () => authorizeGmail('monthly'));
   $('breakMemoryList').addEventListener('change', () => {
     $('forgetBreak').disabled = !$('breakMemoryList').value;
     $('breakMemoryStatus').textContent = '';
@@ -574,11 +631,13 @@
         const canvas = $(type === 'pachinko' ? 'previewP' : 'previewS');
         files.push({ name: fileName(type, state.format), bytes: new Uint8Array(await (await blobFromCanvas(canvas)).arrayBuffer()) });
       }
-      saveBlob(zipFiles(files), 'ranking-jpegs.zip');
+      saveBlob(zipFiles(files), state.rankingMode === 'monthly' ? 'ranking-monthly-jpegs.zip' : 'ranking-jpegs.zip');
     } catch (err) { $('readStatus').textContent = err.message; }
     finally { button.textContent = 'パチンコ・スロットをまとめて保存（ZIP）'; updatePreview(); }
   });
   updateBreakMemoryControls();
   updateMachineStyleOptions();
+  const now = new Date();
+  $('monthlyTarget').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   updatePreview();
 })();
