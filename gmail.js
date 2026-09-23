@@ -63,7 +63,9 @@
       const retryable403 = response.status === 403 && /rate.?limit|quota|backend/i.test(`${reason} ${detailMessage}`);
       const retryable = response.status === 429 || response.status >= 500 || retryable403;
       if (retryable && attempt < 3) {
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (2 ** attempt)));
+        const retryAfter = Number(response.headers && response.headers.get && response.headers.get('Retry-After'));
+        const fallbackSeconds = retryable403 ? 5 * (2 ** attempt) : 1 * (2 ** attempt);
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : fallbackSeconds)));
         continue;
       }
       const suffix = reason ? `: ${reason}` : '';
@@ -142,13 +144,17 @@
     // Narrow the list to ranking-like messages before opening each full body.
     // Without these terms, an active mailbox can require hundreds of Gmail API
     // calls and hit its short-term request limit.
-    const query = options.query || `after:${isoDate(searchStart)} before:${isoDate(searchEnd)} "番台" {"4円P" "21.7391円S"}`;
+    // Requiring the selected month keeps Gmail from returning every historical
+    // ranking report in a busy mailbox. Weeks spanning a month boundary still
+    // contain the selected month in either the start or end date.
+    const query = options.query || `after:${isoDate(searchStart)} before:${isoDate(searchEnd)} "${year}年${month}月" "番台" {"4円P" "21.7391円S"}`;
     // Search all mail for monthly creation. Older weekly reports may already
     // be archived and therefore no longer carry the INBOX label.
     const messages = [];
     const items = [];
-    const pageSize = Math.min(100, Math.max(1, +options.maxResults || 100));
-    const scanLimit = Math.max(pageSize, +options.scanLimit || 200);
+    const pageSize = Math.min(50, Math.max(1, +options.maxResults || 50));
+    const scanLimit = Math.max(pageSize, +options.scanLimit || 60);
+    const requestDelayMs = options.requestDelayMs == null ? 350 : Math.max(0, +options.requestDelayMs || 0);
     let pageToken = '';
     do {
       const tokenPart = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
@@ -158,9 +164,13 @@
     } while (pageToken && items.length < scanLimit);
     // Read one message at a time. Gmail can return userRateLimitExceeded as
     // HTTP 403 when several full message requests arrive in a burst.
-    for (const item of items) {
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index];
       const message = await gmailRequest(accessToken, `messages/${encodeURIComponent(item.id)}?format=full`, fetchFn);
       messages.push({ id: item.id, message });
+      if (requestDelayMs && index < items.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, requestDelayMs));
+      }
     }
 
     const groups = { pachinko: [], slot: [] };
