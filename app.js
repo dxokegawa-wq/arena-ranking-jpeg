@@ -126,6 +126,30 @@
     }
   }
 
+  function saveNameBreaks() {
+    try { localStorage.setItem(nameBreakStorageKey, JSON.stringify(nameBreaks)); } catch (_) {}
+  }
+
+  function updateBreakMemoryControls(selectedKey = '') {
+    const select = $('breakMemoryList');
+    const entries = Object.entries(nameBreaks).sort((a, b) =>
+      a[1].replace(/\n/g, '').localeCompare(b[1].replace(/\n/g, ''), 'ja')
+    );
+    select.replaceChildren();
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = entries.length ? '機種名を選択' : '記憶なし';
+    select.append(empty);
+    for (const [key, displayName] of entries) {
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = displayName.replace(/\n/g, ' ／ ');
+      select.append(option);
+    }
+    select.value = entries.some(([key]) => key === selectedKey) ? selectedKey : '';
+    $('forgetBreak').disabled = !select.value;
+  }
+
   function rememberManualBreaks(parsed) {
     let changed = 0;
     for (const row of [...parsed.groups.pachinko, ...parsed.groups.slot]) {
@@ -139,7 +163,8 @@
       }
     }
     if (changed) {
-      try { localStorage.setItem(nameBreakStorageKey, JSON.stringify(nameBreaks)); } catch (_) {}
+      saveNameBreaks();
+      updateBreakMemoryControls();
     }
     return changed;
   }
@@ -147,6 +172,20 @@
   function rememberedName(name) {
     if (String(name).includes('\n')) return name;
     return nameBreaks[nameKey(name)] || name;
+  }
+
+  function forgetSelectedBreak() {
+    const key = $('breakMemoryList').value;
+    const displayName = nameBreaks[key];
+    if (!key || !displayName) return;
+    delete nameBreaks[key];
+    saveNameBreaks();
+    for (const row of [...state.parsed.groups.pachinko, ...state.parsed.groups.slot]) {
+      if (nameKey(row.name) === key) row.name = String(row.name).replace(/\s*\n\s*/g, '');
+    }
+    updateBreakMemoryControls();
+    $('breakMemoryStatus').textContent = `「${displayName.replace(/\n/g, '')}」を1行に戻しました。次回も1行で表示します。`;
+    updatePreview();
   }
 
   function loadImage(url) {
@@ -397,6 +436,11 @@
 
   $('mailText').addEventListener('input', updateMail);
   $('gmailImport').addEventListener('click', authorizeGmail);
+  $('breakMemoryList').addEventListener('change', () => {
+    $('forgetBreak').disabled = !$('breakMemoryList').value;
+    $('breakMemoryStatus').textContent = '';
+  });
+  $('forgetBreak').addEventListener('click', forgetSelectedBreak);
   $('format').addEventListener('change', () => { state.format = $('format').value; updatePreview(); });
   $('nameWeight').value = state.nameWeight;
   $('nameSize').value = Math.round(state.nameScale * 100);
@@ -433,5 +477,6 @@
     } catch (err) { $('readStatus').textContent = err.message; }
     finally { button.textContent = 'パチンコ・スロットをまとめて保存（ZIP）'; updatePreview(); }
   });
+  updateBreakMemoryControls();
   updatePreview();
 })();

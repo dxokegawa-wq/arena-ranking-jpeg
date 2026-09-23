@@ -26,6 +26,13 @@
         <label for="mailText" class="field-label">件名や署名を含めて、そのまま貼り付けられます</label>
         <textarea id="mailText" spellcheck="false" placeholder="店舗：ogo\n2026年9月7日(月)～2026年9月13日(日)\n\n■4円P\n① 216番台 e東京喰種W 9/13 60610発\n...\n\n■21.7391円S\n① 53番台 L甲鉄城のカバネリ海門決戦 9/13 8326枚"></textarea>
         <p class="hint">最初はすべて1行です。機種名の途中でEnterを押すと、その改行位置をこのブラウザーに記憶します。</p>
+        <div class="break-memory" aria-label="記憶した機種名の改行">
+          <label for="breakMemoryList">記憶した機種名
+            <select id="breakMemoryList"><option value="">記憶なし</option></select>
+          </label>
+          <button id="forgetBreak" type="button" disabled>選んだ機種を1行に戻す</button>
+        </div>
+        <p id="breakMemoryStatus" class="break-memory-status" role="status" aria-live="polite"></p>
         <p id="readStatus" class="status" role="status" aria-live="polite">本文を貼ると自動で読み取ります。</p>
 
         <div class="heading second"><span class="step">02</span><h2>日付を確認</h2></div>
