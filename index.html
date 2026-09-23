@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0c1930">
   <title>出玉ランキング画像メーカー</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260923-2">
 </head>
 <body>
   <main class="shell">
@@ -18,13 +18,16 @@
     <div class="layout">
       <section class="panel input-panel" aria-labelledby="paste-title">
         <div class="heading"><span class="step">01</span><h2 id="paste-title">メール本文を貼り付け</h2></div>
-        <div class="gmail-import" aria-labelledby="gmail-title">
-          <div><strong id="gmail-title">桶川店 Gmailテスト</strong><span>ao.yakusyoku@gmail.com</span></div>
-          <button id="gmailImport" type="button">Gmailから最新メールを読み込む</button>
-          <p id="gmailStatus" role="status" aria-live="polite">Googleの承認は初回だけです。次回からはこのボタンだけで最新メールを読み込みます。</p>
+        <div class="gmail-import" aria-label="Gmailから画像を作成">
+          <div class="gmail-store">
+            <label for="gmailStore">店舗 <select id="gmailStore"></select></label>
+            <span id="gmailEmail"></span>
+          </div>
+          <button id="gmailImport" type="button">週間画像作成</button>
+          <p id="gmailStatus" role="status" aria-live="polite">店舗を選び、週間または月間の画像作成ボタンを押してください。</p>
           <div class="monthly-import">
             <label for="monthlyTarget">月間ランキングの対象月 <input id="monthlyTarget" type="month"></label>
-            <button id="gmailMonthlyImport" type="button">週間メールをまとめて月間画像を作成</button>
+            <button id="gmailMonthlyImport" type="button">月間画像作成</button>
           </div>
         </div>
         <label for="mailText" class="field-label">件名や署名を含めて、そのまま貼り付けられます</label>
@@ -92,9 +95,9 @@
   </main>
   <script src="holidays.js"></script>
   <script src="core.js"></script>
-  <script src="gmail-config.js"></script>
+  <script src="gmail-config.js?v=20260923-2"></script>
   <script src="gmail.js?v=20260923-4"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=20260923-2"></script>
 </body>
 </html>

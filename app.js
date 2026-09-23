@@ -28,6 +28,7 @@
   const nameBreaks = loadNameBreaks();
   const nameStyleStorageKey = 'arena-ranking-name-styles-v1';
   const nameStyles = loadNameStyles();
+  const gmailStoreStorageKey = 'arena-ranking-store-v1';
 
   function loadTypography() {
     try {
@@ -57,11 +58,54 @@
   let gmailAccessToken = '';
   let gmailTokenExpiresAt = 0;
 
+  function gmailStores() {
+    const stores = window.ArenaGmailConfig && window.ArenaGmailConfig.stores;
+    return Array.isArray(stores) ? stores.filter((store) => store && store.id && store.name && store.email) : [];
+  }
+
+  function selectedGmailStore() {
+    const stores = gmailStores();
+    return stores.find((store) => store.id === $('gmailStore').value) || stores[0] || null;
+  }
+
+  function selectedGmailEmail() {
+    const store = selectedGmailStore();
+    return store ? store.email : '';
+  }
+
+  function updateGmailStore(resetToken = true) {
+    const store = selectedGmailStore();
+    if (resetToken) {
+      gmailAccessToken = '';
+      gmailTokenExpiresAt = 0;
+    }
+    $('gmailEmail').textContent = store ? store.email : '利用できる店舗がありません';
+    if (store) {
+      try { localStorage.setItem(gmailStoreStorageKey, store.id); } catch (_) {}
+      $('gmailStatus').textContent = `${store.name}のGmailから週間または月間の画像を作成します。`;
+    }
+  }
+
+  function setupGmailStores() {
+    const select = $('gmailStore');
+    const stores = gmailStores();
+    select.replaceChildren(...stores.map((store) => {
+      const option = document.createElement('option');
+      option.value = store.id;
+      option.textContent = store.name;
+      return option;
+    }));
+    let saved = '';
+    try { saved = localStorage.getItem(gmailStoreStorageKey) || ''; } catch (_) {}
+    select.value = stores.some((store) => store.id === saved) ? saved : (stores[0] && stores[0].id || '');
+    updateGmailStore(false);
+  }
+
   function setGmailBusy(busy, message) {
     $('gmailImport').disabled = busy;
     $('gmailMonthlyImport').disabled = busy;
-    $('gmailImport').textContent = busy ? 'Gmailを確認中…' : 'Gmailから最新メールを読み込む';
-    $('gmailMonthlyImport').textContent = busy ? '月間ランキングを作成中…' : '週間メールをまとめて月間画像を作成';
+    $('gmailImport').textContent = busy ? '週間画像を作成中…' : '週間画像作成';
+    $('gmailMonthlyImport').textContent = busy ? '月間画像を作成中…' : '月間画像作成';
     if (message) $('gmailStatus').textContent = message;
   }
 
@@ -69,7 +113,7 @@
     setGmailBusy(true, '直近30日のメールからランキングを探しています…');
     try {
       const found = await ArenaGmail.findLatestRanking(gmailAccessToken, RankingCore.parseMail, {
-        allowedEmail: window.ArenaGmailConfig && window.ArenaGmailConfig.allowedEmail
+        allowedEmail: selectedGmailEmail()
       });
       if (!found) {
         setGmailBusy(false, '直近30日に読み取れるランキングメールが見つかりませんでした。');
@@ -111,7 +155,7 @@
     setGmailBusy(true, `${year}年${month}月と前後の週間メールを集めています…`);
     try {
       const found = await ArenaGmail.findMonthlyRankings(gmailAccessToken, RankingCore.parseMail, {
-        allowedEmail: window.ArenaGmailConfig && window.ArenaGmailConfig.allowedEmail,
+        allowedEmail: selectedGmailEmail(),
         year,
         month
       });
@@ -138,9 +182,13 @@
 
   function authorizeGmail(mode = 'weekly') {
     const clientId = window.ArenaGmailConfig && window.ArenaGmailConfig.clientId;
-    const allowedEmail = window.ArenaGmailConfig && window.ArenaGmailConfig.allowedEmail;
+    const allowedEmail = selectedGmailEmail();
     if (!clientId) {
       $('gmailStatus').textContent = 'Google側の認証設定を準備中です。';
+      return;
+    }
+    if (!allowedEmail) {
+      $('gmailStatus').textContent = '店舗のGmail設定が見つかりません。';
       return;
     }
     if (gmailAccessToken && Date.now() < gmailTokenExpiresAt) {
@@ -590,6 +638,7 @@
   $('mailText').addEventListener('input', updateMail);
   $('gmailImport').addEventListener('click', () => authorizeGmail('weekly'));
   $('gmailMonthlyImport').addEventListener('click', () => authorizeGmail('monthly'));
+  $('gmailStore').addEventListener('change', () => updateGmailStore(true));
   $('breakMemoryList').addEventListener('change', () => {
     $('forgetBreak').disabled = !$('breakMemoryList').value;
     $('breakMemoryStatus').textContent = '';
@@ -637,6 +686,7 @@
   });
   updateBreakMemoryControls();
   updateMachineStyleOptions();
+  setupGmailStores();
   const now = new Date();
   $('monthlyTarget').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   updatePreview();
