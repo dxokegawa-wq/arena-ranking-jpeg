@@ -21,7 +21,7 @@ h2 { font-size: 20px; line-height: 1.4; margin: 0; }
 .gmail-store select { width: 100%; min-height: 37px; border: 1px solid #576f91; border-radius: 8px; color: #fff; background: #07172c; padding: 7px 9px; }
 .gmail-import span, .gmail-import p { color: #aebfda; font-size: 12px; }
 .gmail-import p { grid-column: 1 / -1; margin: 0; line-height: 1.6; }
-.gmail-import button { border: 1px solid #edc765; background: #edc765; color: #192440; border-radius: 9px; padding: 10px 12px; font-size: 13px; font-weight: 800; }
+.gmail-import button { min-width: 112px; white-space: nowrap; border: 1px solid #edc765; background: #edc765; color: #192440; border-radius: 9px; padding: 10px 12px; font-size: 13px; font-weight: 800; }
 .gmail-import button:disabled { cursor: wait; opacity: .6; }
 .monthly-import { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(220px, 1fr) auto; gap: 10px 14px; align-items: end; padding-top: 11px; border-top: 1px solid #385176; }
 .monthly-import label { display: grid; gap: 6px; color: #bdcde4; font-size: 12px; font-weight: 700; }
