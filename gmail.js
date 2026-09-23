@@ -124,12 +124,22 @@
 
     // Include the weeks that overlap the beginning and end of the month. The
     // ranking date inside each email decides whether each row belongs to the month.
-    const searchStart = new Date(Date.UTC(year, month - 1, 1) - 14 * 86400000);
-    const searchEnd = new Date(Date.UTC(year, month, 1) + 14 * 86400000);
+    const searchStart = new Date(Date.UTC(year, month - 1, 1) - 21 * 86400000);
+    const searchEnd = new Date(Date.UTC(year, month, 1) + 21 * 86400000);
     const query = options.query || `after:${isoDate(searchStart)} before:${isoDate(searchEnd)}`;
-    const list = await gmailRequest(accessToken, `messages?labelIds=INBOX&maxResults=${options.maxResults || 500}&q=${encodeURIComponent(query)}`, fetchFn);
+    // Search all mail for monthly creation. Older weekly reports may already
+    // be archived and therefore no longer carry the INBOX label.
     const messages = [];
-    const items = list.messages || [];
+    const items = [];
+    const pageSize = Math.min(500, Math.max(1, +options.maxResults || 500));
+    const scanLimit = Math.max(pageSize, +options.scanLimit || 1000);
+    let pageToken = '';
+    do {
+      const tokenPart = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
+      const list = await gmailRequest(accessToken, `messages?maxResults=${pageSize}&q=${encodeURIComponent(query)}${tokenPart}`, fetchFn);
+      items.push(...(list.messages || []).slice(0, scanLimit - items.length));
+      pageToken = list.nextPageToken || '';
+    } while (pageToken && items.length < scanLimit);
     for (let i = 0; i < items.length; i += 10) {
       const batch = await Promise.all(items.slice(i, i + 10).map((item) =>
         gmailRequest(accessToken, `messages/${encodeURIComponent(item.id)}?format=full`, fetchFn)
