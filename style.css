@@ -53,6 +53,18 @@ select { border: 1px solid #5b7497; border-radius: 8px; padding: 9px 10px; backg
 .type-controls input[type=range] { width: 100%; accent-color: #edc765; }
 .type-controls output { color: #f3d987; text-align: right; font-weight: 800; }
 .type-controls p { grid-column: 1 / -1; color: #91a9c8; font-size: 12px; margin: 0; }
+.machine-type-controls { display: grid; grid-template-columns: minmax(240px, 1.25fr) repeat(2, minmax(190px, 1fr)); gap: 10px 16px; align-items: end; margin-top: 12px; padding: 14px; border: 1px solid #4b668c; border-radius: 12px; background: #102743; }
+.machine-type-heading { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px 12px; }
+.machine-type-heading strong { color: #f3d987; font-size: 14px; }
+.machine-type-heading span { color: #91a9c8; font-size: 12px; }
+.machine-type-controls label { display: grid; grid-template-columns: auto minmax(90px, 1fr) 58px; align-items: center; gap: 9px; color: #c7d5e9; font-size: 13px; font-weight: 700; }
+.machine-type-controls .machine-picker { grid-template-columns: 88px minmax(140px, 1fr); }
+.machine-type-controls select { width: 100%; max-width: none; }
+.machine-type-controls input[type=range] { width: 100%; accent-color: #edc765; }
+.machine-type-controls output { color: #f3d987; text-align: right; font-weight: 800; }
+.machine-type-controls button { grid-column: 1 / 2; justify-self: start; border: 1px solid #ac8f50; background: #192b45; color: #f6df9f; border-radius: 9px; padding: 9px 12px; font-size: 12px; font-weight: 800; }
+.machine-type-controls button:disabled { cursor: not-allowed; opacity: .45; }
+.machine-type-controls p { grid-column: 2 / -1; align-self: center; color: #9fb4d0; font-size: 12px; margin: 0; }
 .previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
 .result-card { min-width: 0; padding: 14px; border: 1px solid #385176; border-radius: 14px; background: #0b1b32; }
 .result-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -68,5 +80,6 @@ canvas { display: block; width: auto; height: 100%; max-width: 100%; object-fit:
 .download-note { color: #91a9c8; font-size: 12px; margin: 10px 0 0; line-height: 1.6; }
 footer { text-align: center; padding: 30px 0 8px; color: #7994b7; font-size: 12px; }
 @media (max-width: 1250px) { .layout { grid-template-columns: 1fr; } .preview-stage { height: 650px; } }
+@media (max-width: 900px) { .machine-type-controls { grid-template-columns: 1fr 1fr; } .machine-picker, .machine-type-controls button { grid-column: 1 / -1; } .machine-type-controls p { grid-column: 1 / -1; } }
 @media (max-width: 740px) { .previews { grid-template-columns: 1fr; } .preview-stage { height: 610px; } }
-@media (max-width: 600px) { .shell { padding: 26px 14px; } .hero { margin-bottom: 24px; } .panel { padding: 17px; border-radius: 15px; } .gmail-import, .break-memory { grid-template-columns: 1fr; } .gmail-import p { grid-column: auto; } textarea { min-height: 320px; } .date-grid { gap: 5px; } fieldset { padding: 9px 5px; } input[type=number] { width: 50px; } input[id$=Year] { width: 78px; } .date-arrow { font-size: 18px; } .type-controls { grid-template-columns: 1fr; } .type-controls p { grid-column: auto; } .type-controls label { grid-template-columns: 112px minmax(80px, 1fr) 58px; } .preview-stage { min-height: 330px; height: 520px; } .actions button { flex: 1; } }
+@media (max-width: 600px) { .shell { padding: 26px 14px; } .hero { margin-bottom: 24px; } .panel { padding: 17px; border-radius: 15px; } .gmail-import, .break-memory, .machine-type-controls { grid-template-columns: 1fr; } .gmail-import p, .machine-type-controls p, .machine-picker, .machine-type-controls button { grid-column: auto; } textarea { min-height: 320px; } .date-grid { gap: 5px; } fieldset { padding: 9px 5px; } input[type=number] { width: 50px; } input[id$=Year] { width: 78px; } .date-arrow { font-size: 18px; } .type-controls { grid-template-columns: 1fr; } .type-controls p { grid-column: auto; } .type-controls label { grid-template-columns: 112px minmax(80px, 1fr) 58px; } .machine-type-controls label { grid-template-columns: 70px minmax(80px, 1fr) 58px; } .machine-type-controls .machine-picker { grid-template-columns: 88px minmax(120px, 1fr); } .preview-stage { min-height: 330px; height: 520px; } .actions button { flex: 1; } }

@@ -26,6 +26,8 @@
   const imageCache = {};
   const nameBreakStorageKey = 'arena-ranking-name-breaks-v1';
   const nameBreaks = loadNameBreaks();
+  const nameStyleStorageKey = 'arena-ranking-name-styles-v1';
+  const nameStyles = loadNameStyles();
 
   function loadTypography() {
     try {
@@ -46,6 +48,10 @@
     const labels = { 500: '細い', 600: 'やや細い', 700: '標準', 800: 'やや太い', 900: '太い' };
     $('nameWeightValue').textContent = labels[state.nameWeight];
     $('nameSizeValue').textContent = `${Math.round(state.nameScale * 100)}%`;
+  }
+
+  function typographyWeightLabel(weight) {
+    return ({ 500: '細い', 600: 'やや細い', 700: '標準', 800: 'やや太い', 900: '太い' })[weight];
   }
 
   let gmailAccessToken = '';
@@ -115,6 +121,95 @@
 
   function nameKey(name) {
     return String(name || '').replace(/\s+/g, '');
+  }
+
+  function loadNameStyles() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(nameStyleStorageKey) || '{}');
+      if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
+      return Object.fromEntries(Object.entries(saved).filter(([, value]) =>
+        value && [500, 600, 700, 800, 900].includes(+value.weight) &&
+        Number.isFinite(+value.scale) && +value.scale >= 0.75 && +value.scale <= 1.2
+      ).map(([key, value]) => [key, { weight: +value.weight, scale: +value.scale }]));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function saveNameStyles() {
+    try { localStorage.setItem(nameStyleStorageKey, JSON.stringify(nameStyles)); } catch (_) {}
+  }
+
+  function machineRows() {
+    const seen = new Set();
+    const rows = [];
+    for (const [type, label] of [['pachinko', 'パチンコ'], ['slot', 'スロット']]) {
+      for (const row of state.parsed.groups[type]) {
+        const key = nameKey(row.name);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        rows.push({ key, label, name: String(row.name).replace(/\n/g, ' ／ ') });
+      }
+    }
+    return rows;
+  }
+
+  function updateMachineStyleOptions(selectedKey = $('machineStyleList').value) {
+    const select = $('machineStyleList');
+    const rows = machineRows();
+    select.replaceChildren();
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = rows.length ? '機種名を選択' : 'メール本文を読み込んでください';
+    select.append(empty);
+    for (const row of rows) {
+      const option = document.createElement('option');
+      option.value = row.key;
+      option.textContent = `${row.label}：${row.name}`;
+      select.append(option);
+    }
+    select.value = rows.some((row) => row.key === selectedKey) ? selectedKey : '';
+    syncMachineStyleControls();
+  }
+
+  function syncMachineStyleControls() {
+    const key = $('machineStyleList').value;
+    const saved = key && nameStyles[key];
+    const weight = saved ? saved.weight : state.nameWeight;
+    const scale = saved ? saved.scale : state.nameScale;
+    $('machineWeight').value = weight;
+    $('machineSize').value = Math.round(scale * 100);
+    $('machineWeightValue').textContent = typographyWeightLabel(weight);
+    $('machineSizeValue').textContent = `${Math.round(scale * 100)}%`;
+    $('machineWeight').disabled = !key;
+    $('machineSize').disabled = !key;
+    $('resetMachineStyle').disabled = !saved;
+    $('machineStyleStatus').textContent = !key ? '機種名を選ぶと個別に調整できます。'
+      : saved ? 'この機種の個別設定を使用しています。次回も同じ設定で表示します。'
+        : '個別設定なし。現在は全体設定を使用しています。';
+  }
+
+  function saveSelectedMachineStyle() {
+    const key = $('machineStyleList').value;
+    if (!key) return;
+    nameStyles[key] = { weight: +$('machineWeight').value, scale: +$('machineSize').value / 100 };
+    saveNameStyles();
+    syncMachineStyleControls();
+    updatePreview();
+  }
+
+  function resetSelectedMachineStyle() {
+    const key = $('machineStyleList').value;
+    if (!key || !nameStyles[key]) return;
+    delete nameStyles[key];
+    saveNameStyles();
+    syncMachineStyleControls();
+    $('machineStyleStatus').textContent = '個別設定を解除し、全体設定に戻しました。';
+    updatePreview();
+  }
+
+  function nameStyle(name) {
+    return nameStyles[nameKey(name)] || { weight: state.nameWeight, scale: state.nameScale };
   }
 
   function loadNameBreaks() {
@@ -269,47 +364,48 @@
 
   const nameFont = 'Arial, "Yu Gothic", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif';
 
-  function fittedNameSize(ctx, lines, initial, minimum, width) {
+  function fittedNameSize(ctx, lines, initial, minimum, width, weight) {
     let size = initial;
     while (size > minimum) {
-      ctx.font = `${state.nameWeight} ${size}px ${nameFont}`;
+      ctx.font = `${weight} ${size}px ${nameFont}`;
       if (lines.every((line) => ctx.measureText(line).width <= width)) break;
       size--;
     }
     return size;
   }
 
-  function drawNameLine(ctx, text, x, y, width, size, align) {
+  function drawNameLine(ctx, text, x, y, width, size, align, weight) {
     ctx.textAlign = align;
-    ctx.font = `${state.nameWeight} ${size}px ${nameFont}`;
+    ctx.font = `${weight} ${size}px ${nameFont}`;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = ctx.fillStyle;
-    const stroke = Math.max(0, (state.nameWeight - 500) / 400) * Math.min(size > 25 ? 1.8 : 1.1, size * 0.03);
+    const stroke = Math.max(0, (weight - 500) / 400) * Math.min(size > 25 ? 1.8 : 1.1, size * 0.03);
     if (stroke > 0.1) { ctx.lineWidth = stroke; ctx.strokeText(text, x, y, width); }
     ctx.fillText(text, x, y, width);
   }
 
   function drawName(ctx, name, g, y) {
+    const style = nameStyle(name);
     name = rememberedName(name);
     const minimum = g.rowHeight > 80 ? 15 : 9;
-    const oneLineMax = Math.round(g.nameFont * state.nameScale);
+    const oneLineMax = Math.round(g.nameFont * style.scale);
     const parts = String(name).split('\n').map((line) => line.trim()).filter(Boolean);
     if (parts.length <= 1) {
       const line = parts[0] || '';
-      const size = fittedNameSize(ctx, [line], oneLineMax, minimum, g.nameWidth);
-      drawNameLine(ctx, line, g.nameX, y, g.nameWidth, size, 'left');
+      const size = fittedNameSize(ctx, [line], oneLineMax, minimum, g.nameWidth, style.weight);
+      drawNameLine(ctx, line, g.nameX, y, g.nameWidth, size, 'left', style.weight);
       return;
     }
 
     // Only an Enter inserted by the user creates a second line. If more than
     // one Enter is present, keep the first line and combine the rest on line 2.
     const lines = [parts[0], parts.slice(1).join(' ')];
-    const twoLineMax = Math.round((g.rowHeight > 80 ? 41 : 23) * state.nameScale);
-    const size = fittedNameSize(ctx, lines, twoLineMax, minimum, g.nameWidth);
+    const twoLineMax = Math.round((g.rowHeight > 80 ? 41 : 23) * style.scale);
+    const size = fittedNameSize(ctx, lines, twoLineMax, minimum, g.nameWidth, style.weight);
     const center = g.nameX + g.nameWidth / 2;
     const gap = size * 0.96;
-    drawNameLine(ctx, lines[0], center, y - gap / 2, g.nameWidth, size, 'center');
-    drawNameLine(ctx, lines[1], center, y + gap / 2, g.nameWidth, size, 'center');
+    drawNameLine(ctx, lines[0], center, y - gap / 2, g.nameWidth, size, 'center', style.weight);
+    drawNameLine(ctx, lines[1], center, y + gap / 2, g.nameWidth, size, 'center', style.weight);
   }
 
   async function render(type, format, targetCanvas) {
@@ -393,6 +489,7 @@
     if (total > 0 && !p.period) parts.push('期間が見つからないため、今年とランキングの日付で仮入力しました。年と期間を確認してください。');
     if (p.groups.pachinko.length > 10 || p.groups.slot.length > 10) parts.push('各種類の先頭10件だけ画像に表示します。');
     $('readStatus').textContent = parts.join(' ');
+    updateMachineStyleOptions();
     $('periodStatus').textContent = p.period
       ? `本文から期間を自動取得しました：${p.period.start.year}年${p.period.start.month}月${p.period.start.day}日〜${p.period.end.year}年${p.period.end.month}月${p.period.end.day}日。違う場合だけ修正してください。`
       : period ? '本文に期間がないため、ランキング行の日付から仮入力しました。年と期間を確認してください。'
@@ -441,17 +538,21 @@
     $('breakMemoryStatus').textContent = '';
   });
   $('forgetBreak').addEventListener('click', forgetSelectedBreak);
+  $('machineStyleList').addEventListener('change', syncMachineStyleControls);
+  $('machineWeight').addEventListener('input', saveSelectedMachineStyle);
+  $('machineSize').addEventListener('input', saveSelectedMachineStyle);
+  $('resetMachineStyle').addEventListener('click', resetSelectedMachineStyle);
   $('format').addEventListener('change', () => { state.format = $('format').value; updatePreview(); });
   $('nameWeight').value = state.nameWeight;
   $('nameSize').value = Math.round(state.nameScale * 100);
   updateTypographyLabels();
   $('nameWeight').addEventListener('input', () => {
     state.nameWeight = +$('nameWeight').value;
-    updateTypographyLabels(); saveTypography(); updatePreview();
+    updateTypographyLabels(); saveTypography(); syncMachineStyleControls(); updatePreview();
   });
   $('nameSize').addEventListener('input', () => {
     state.nameScale = +$('nameSize').value / 100;
-    updateTypographyLabels(); saveTypography(); updatePreview();
+    updateTypographyLabels(); saveTypography(); syncMachineStyleControls(); updatePreview();
   });
   ['startYear', 'startMonth', 'startDay', 'endYear', 'endMonth', 'endDay'].forEach((id) => $(id).addEventListener('input', () => {
     $('periodStatus').textContent = '日付を手動で修正しています。画像にもすぐ反映されます。';
@@ -478,5 +579,6 @@
     finally { button.textContent = 'パチンコ・スロットをまとめて保存（ZIP）'; updatePreview(); }
   });
   updateBreakMemoryControls();
+  updateMachineStyleOptions();
   updatePreview();
 })();

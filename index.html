@@ -58,6 +58,16 @@
           <label>機種名の大きさ <input id="nameSize" type="range" min="75" max="120" step="5" value="100"><output id="nameSizeValue" for="nameSize">100%</output></label>
           <p>変更は画像へすぐ反映され、このブラウザーに保存されます。</p>
         </div>
+        <div class="machine-type-controls" aria-label="機種ごとの文字調整">
+          <div class="machine-type-heading"><strong>機種ごとの文字調整</strong><span>対象を選ぶと、その機種だけ変更できます。</span></div>
+          <label class="machine-picker">対象の機種名
+            <select id="machineStyleList"><option value="">メール本文を読み込んでください</option></select>
+          </label>
+          <label>太さ <input id="machineWeight" type="range" min="500" max="900" step="100" value="800" disabled><output id="machineWeightValue" for="machineWeight">やや太い</output></label>
+          <label>大きさ <input id="machineSize" type="range" min="75" max="120" step="5" value="100" disabled><output id="machineSizeValue" for="machineSize">100%</output></label>
+          <button id="resetMachineStyle" type="button" disabled>この機種の個別設定を解除</button>
+          <p id="machineStyleStatus" role="status" aria-live="polite">機種名を選ぶと個別に調整できます。</p>
+        </div>
         <div class="previews">
           <article class="result-card">
             <div class="result-head"><h3>パチンコ <span id="pCount">0</span>件</h3><button id="downloadP" type="button" disabled>JPEGを保存</button></div>
