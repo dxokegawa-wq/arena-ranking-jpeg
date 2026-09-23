@@ -50,18 +50,26 @@
   }
 
   async function gmailRequest(accessToken, path, fetchFn) {
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
       const response = await fetchFn(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       if (response.ok) return response.json();
-      const retryable = response.status === 429 || response.status >= 500;
-      if (retryable && attempt < 2) {
-        await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+      let detail = {};
+      try { detail = await response.json(); } catch (_) {}
+      const apiError = detail && detail.error || {};
+      const reason = String(apiError.errors && apiError.errors[0] && apiError.errors[0].reason || apiError.status || '');
+      const detailMessage = String(apiError.message || '');
+      const retryable403 = response.status === 403 && /rate.?limit|quota|backend/i.test(`${reason} ${detailMessage}`);
+      const retryable = response.status === 429 || response.status >= 500 || retryable403;
+      if (retryable && attempt < 3) {
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (2 ** attempt)));
         continue;
       }
-      const error = new Error(response.status === 401 ? 'Gmailの認証期限が切れました。もう一度ボタンを押してください。' : `Gmailの読み込みに失敗しました（${response.status}）。`);
+      const suffix = reason ? `: ${reason}` : '';
+      const error = new Error(response.status === 401 ? 'Gmailの認証期限が切れました。もう一度ボタンを押してください。' : `Gmailの読み込みに失敗しました（${response.status}${suffix}）。`);
       error.status = response.status;
+      error.reason = reason;
       throw error;
     }
   }
@@ -148,12 +156,11 @@
       items.push(...(list.messages || []).slice(0, scanLimit - items.length));
       pageToken = list.nextPageToken || '';
     } while (pageToken && items.length < scanLimit);
-    for (let i = 0; i < items.length; i += 4) {
-      const batch = await Promise.all(items.slice(i, i + 4).map((item) =>
-        gmailRequest(accessToken, `messages/${encodeURIComponent(item.id)}?format=full`, fetchFn)
-          .then((message) => ({ id: item.id, message }))
-      ));
-      messages.push(...batch);
+    // Read one message at a time. Gmail can return userRateLimitExceeded as
+    // HTTP 403 when several full message requests arrive in a burst.
+    for (const item of items) {
+      const message = await gmailRequest(accessToken, `messages/${encodeURIComponent(item.id)}?format=full`, fetchFn);
+      messages.push({ id: item.id, message });
     }
 
     const groups = { pachinko: [], slot: [] };
