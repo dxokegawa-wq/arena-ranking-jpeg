@@ -50,15 +50,20 @@
   }
 
   async function gmailRequest(accessToken, path, fetchFn) {
-    const response = await fetchFn(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (!response.ok) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const response = await fetchFn(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (response.ok) return response.json();
+      const retryable = response.status === 429 || response.status >= 500;
+      if (retryable && attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+        continue;
+      }
       const error = new Error(response.status === 401 ? 'Gmailの認証期限が切れました。もう一度ボタンを押してください。' : `Gmailの読み込みに失敗しました（${response.status}）。`);
       error.status = response.status;
       throw error;
     }
-    return response.json();
   }
 
   async function findLatestRanking(accessToken, parseMail, options = {}) {
@@ -126,13 +131,16 @@
     // ranking date inside each email decides whether each row belongs to the month.
     const searchStart = new Date(Date.UTC(year, month - 1, 1) - 21 * 86400000);
     const searchEnd = new Date(Date.UTC(year, month, 1) + 21 * 86400000);
-    const query = options.query || `after:${isoDate(searchStart)} before:${isoDate(searchEnd)}`;
+    // Narrow the list to ranking-like messages before opening each full body.
+    // Without these terms, an active mailbox can require hundreds of Gmail API
+    // calls and hit its short-term request limit.
+    const query = options.query || `after:${isoDate(searchStart)} before:${isoDate(searchEnd)} "番台" {"4円P" "21.7391円S"}`;
     // Search all mail for monthly creation. Older weekly reports may already
     // be archived and therefore no longer carry the INBOX label.
     const messages = [];
     const items = [];
-    const pageSize = Math.min(500, Math.max(1, +options.maxResults || 500));
-    const scanLimit = Math.max(pageSize, +options.scanLimit || 1000);
+    const pageSize = Math.min(100, Math.max(1, +options.maxResults || 100));
+    const scanLimit = Math.max(pageSize, +options.scanLimit || 200);
     let pageToken = '';
     do {
       const tokenPart = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
@@ -140,8 +148,8 @@
       items.push(...(list.messages || []).slice(0, scanLimit - items.length));
       pageToken = list.nextPageToken || '';
     } while (pageToken && items.length < scanLimit);
-    for (let i = 0; i < items.length; i += 10) {
-      const batch = await Promise.all(items.slice(i, i + 10).map((item) =>
+    for (let i = 0; i < items.length; i += 4) {
+      const batch = await Promise.all(items.slice(i, i + 4).map((item) =>
         gmailRequest(accessToken, `messages/${encodeURIComponent(item.id)}?format=full`, fetchFn)
           .then((message) => ({ id: item.id, message }))
       ));
