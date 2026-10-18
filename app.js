@@ -609,7 +609,11 @@
     document.body.append(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
-  const fileName = (type, format) => `ranking-${state.rankingMode === 'monthly' ? 'monthly-' : ''}${type}-${format}.jpg`;
+  function todayFileStamp() {
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+  const fileName = (type) => `${todayFileStamp()}_${type === 'pachinko' ? 'パチンコ' : 'スロット'}.jpg`;
 
   // Store-only ZIP: JPEGs are already compressed. One download avoids browsers
   // blocking several automatic downloads from a single click.
@@ -667,7 +671,7 @@
   for (const [type, buttonId, canvasId] of [['pachinko', 'downloadP', 'previewP'], ['slot', 'downloadS', 'previewS']]) {
     $(buttonId).addEventListener('click', async () => {
       if ($(buttonId).disabled) return;
-      saveBlob(await blobFromCanvas($(canvasId)), fileName(type, state.format));
+      saveBlob(await blobFromCanvas($(canvasId)), fileName(type));
     });
   }
   $('downloadAll').addEventListener('click', async () => {
@@ -678,9 +682,9 @@
       for (const type of ['pachinko', 'slot']) {
         if (!state.parsed.groups[type].length) continue;
         const canvas = $(type === 'pachinko' ? 'previewP' : 'previewS');
-        files.push({ name: fileName(type, state.format), bytes: new Uint8Array(await (await blobFromCanvas(canvas)).arrayBuffer()) });
+        files.push({ name: fileName(type), bytes: new Uint8Array(await (await blobFromCanvas(canvas)).arrayBuffer()) });
       }
-      saveBlob(zipFiles(files), state.rankingMode === 'monthly' ? 'ranking-monthly-jpegs.zip' : 'ranking-jpegs.zip');
+      saveBlob(zipFiles(files), `${todayFileStamp()}_${state.rankingMode === 'monthly' ? '月間' : '週間'}出玉ランキング.zip`);
     } catch (err) { $('readStatus').textContent = err.message; }
     finally { button.textContent = 'パチンコ・スロットをまとめて保存（ZIP）'; updatePreview(); }
   });
