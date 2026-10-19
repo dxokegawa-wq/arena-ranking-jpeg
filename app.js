@@ -602,7 +602,10 @@
     updatePreview();
   }
 
-  const blobFromCanvas = (canvas) => new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('JPEGの作成に失敗しました。')), 'image/jpeg', 0.95));
+  const blobFromCanvas = (canvas) => new Promise((resolve, reject) => {
+    const quality = state.format === 'web' ? 1 : 0.95;
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('JPEGの作成に失敗しました。')), 'image/jpeg', quality);
+  });
   function saveBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a'); link.href = url; link.download = filename;
