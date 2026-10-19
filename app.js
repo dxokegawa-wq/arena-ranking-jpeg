@@ -603,8 +603,7 @@
   }
 
   const blobFromCanvas = (canvas) => new Promise((resolve, reject) => {
-    const quality = state.format === 'web' ? 1 : 0.95;
-    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('JPEGの作成に失敗しました。')), 'image/jpeg', quality);
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('JPEGの作成に失敗しました。')), 'image/jpeg', 1);
   });
   function saveBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
